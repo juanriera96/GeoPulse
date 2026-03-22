@@ -1,0 +1,139 @@
+import { useNavigate } from 'react-router-dom'
+import { Globe, Shield, Zap, BarChart3, ArrowRight, Check } from 'lucide-react'
+
+const FEATURES = [
+  { icon: Shield, title: 'Monitoreo en tiempo real', desc: 'Alertas instantaneas sobre eventos geopoliticos que afectan tus rutas de importacion.' },
+  { icon: Zap, title: 'IA con Claude', desc: 'Analisis profundo impulsado por Claude con busqueda web en tiempo real.' },
+  { icon: BarChart3, title: 'Reportes automaticos', desc: 'Reportes PDF semanales con resumen ejecutivo y recomendaciones accionables.' },
+  ]
+
+const PLANS = [
+  {
+        name: 'Free', price: 0, period: 'mes',
+        features: ['3 rutas', '5 analisis/mes', 'Alertas basicas', 'Dashboard'],
+        cta: 'Empezar gratis',
+  },
+  {
+        name: 'Pro', price: 49, period: 'mes', highlight: true,
+        features: ['Rutas ilimitadas', '50 analisis/mes', 'Alertas en tiempo real', 'Reportes PDF', 'API access'],
+        cta: 'Empezar Pro',
+  },
+  {
+        name: 'Business', price: 149, period: 'mes',
+        features: ['Todo en Pro', 'Analisis ilimitados', 'Integraciones custom', 'Soporte prioritario', 'Onboarding dedicado'],
+        cta: 'Contactar ventas',
+  },
+  ]
+
+export default function LandingPage() {
+    const navigate = useNavigate()
+
+  return (
+        <div className="min-h-screen bg-slate-950 text-slate-100">
+          {/* Nav */}
+              <nav className="border-b border-slate-800 px-6 h-16 flex items-center justify-between max-w-7xl mx-auto">
+                      <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
+                                            <Globe className="w-4 h-4 text-white" />
+                                </div>div>
+                                <span className="text-lg font-bold">GeoPulse</span>span>
+                      </div>div>
+                      <div className="flex items-center gap-3">
+                                <button onClick={() => navigate('/auth')} className="text-slate-400 hover:text-white text-sm font-medium transition-colors">
+                                            Iniciar sesion
+                                </button>button>
+                                <button onClick={() => navigate('/auth?mode=signup')} className="btn-primary text-sm">
+                                            Comenzar gratis
+                                </button>button>
+                      </div>div>
+              </nav>nav>
+        
+          {/* Hero */}
+              <section className="max-w-4xl mx-auto px-6 py-24 text-center">
+                      <div className="inline-flex items-center gap-2 bg-brand-900/40 border border-brand-700/50 rounded-full px-4 py-1.5 mb-6">
+                                <div className="w-1.5 h-1.5 bg-brand-400 rounded-full animate-pulse" />
+                                <span className="text-brand-300 text-xs font-medium">Powered by Claude AI</span>span>
+                      </div>div>
+                      <h1 className="text-5xl font-bold text-white mb-6 leading-tight">
+                                Inteligencia de riesgo<br />
+                                <span className="text-brand-400">geopolitico</span>span> para importadores
+                      </h1>h1>
+                      <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                                Anticipa disrupciones en tus cadenas de suministro. Analisis en tiempo real con IA sobre tensiones comerciales, conflictos y riesgos regulatorios.
+                      </p>p>
+                      <div className="flex items-center justify-center gap-4">
+                                <button
+                                              onClick={() => navigate('/auth?mode=signup')}
+                                              className="btn-primary px-8 py-3 text-base flex items-center gap-2"
+                                            >
+                                            Empezar gratis
+                                            <ArrowRight className="w-4 h-4" />
+                                </button>button>
+                                <button
+                                              onClick={() => navigate('/auth')}
+                                              className="btn-secondary px-8 py-3 text-base"
+                                            >
+                                            Ver demo
+                                </button>button>
+                      </div>div>
+              </section>section>
+        
+          {/* Features */}
+              <section className="max-w-5xl mx-auto px-6 py-16">
+                      <div className="grid md:grid-cols-3 gap-6">
+                        {FEATURES.map(({ icon: Icon, title, desc }) => (
+                      <div key={title} className="card p-6">
+                                    <div className="w-10 h-10 bg-brand-600/20 rounded-lg flex items-center justify-center mb-4">
+                                                    <Icon className="w-5 h-5 text-brand-400" />
+                                    </div>div>
+                                    <h3 className="text-white font-semibold mb-2">{title}</h3>h3>
+                                    <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>p>
+                      </div>div>
+                    ))}
+                      </div>div>
+              </section>section>
+        
+          {/* Pricing */}
+              <section className="max-w-5xl mx-auto px-6 py-16">
+                      <h2 className="text-3xl font-bold text-white text-center mb-3">Planes simples y transparentes</h2>h2>
+                      <p className="text-slate-400 text-center mb-12">Empieza gratis, escala cuando lo necesites</p>p>
+                      <div className="grid md:grid-cols-3 gap-6">
+                        {PLANS.map(plan => (
+                      <div
+                                      key={plan.name}
+                                      className={`card p-6 flex flex-col ${plan.highlight ? 'border-brand-600 ring-1 ring-brand-600' : ''}`}
+                                    >
+                        {plan.highlight && (
+                                                      <div className="text-xs font-bold text-brand-400 uppercase tracking-wider mb-3">Mas popular</div>div>
+                                    )}
+                                    <h3 className="text-xl font-bold text-white">{plan.name}</h3>h3>
+                                    <div className="mt-3 mb-6">
+                                                    <span className="text-4xl font-bold text-white">${plan.price}</span>span>
+                                                    <span className="text-slate-400 text-sm">/{plan.period}</span>span>
+                                    </div>div>
+                                    <ul className="space-y-2 flex-1 mb-6">
+                                      {plan.features.map(f => (
+                                                        <li key={f} className="flex items-center gap-2 text-sm text-slate-300">
+                                                                            <Check className="w-4 h-4 text-brand-400 shrink-0" />
+                                                          {f}
+                                                        </li>li>
+                                                      ))}
+                                    </ul>ul>
+                                    <button
+                                                      onClick={() => navigate('/auth?mode=signup')}
+                                                      className={plan.highlight ? 'btn-primary w-full' : 'btn-secondary w-full'}
+                                                    >
+                                      {plan.cta}
+                                    </button>button>
+                      </div>div>
+                    ))}
+                      </div>div>
+              </section>section>
+        
+          {/* Footer */}
+              <footer className="border-t border-slate-800 py-8 text-center text-slate-600 text-sm">
+                      <p>© 2025 GeoPulse. Todos los derechos reservados.</p>p>
+              </footer>footer>
+        </div>div>
+      )
+}</div>
