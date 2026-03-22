@@ -1,0 +1,189 @@
+import { useEffect, useState } from 'react'
+import { useAuthStore } from '../store/authStore'
+import { supabase } from '../lib/supabase'
+import { useNavigate } from 'react-router-dom'
+import clsx from 'clsx'
+import { Shield, Route, Bell, TrendingUp, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
+
+function RiskCard({ title, score, level, country, lastUpdated }) {
+    const colors = {
+          low: { badge: 'badge-low', bar: 'bg-emerald-500', text: 'text-emerald-400' },
+          medium: { badge: 'badge-medium', bar: 'bg-amber-500', text: 'text-amber-400' },
+          high: { badge: 'badge-high', bar: 'bg-red-500', text: 'text-red-400' },
+    }
+    const c = colors[level] || colors.medium
+
+  return (
+        <div className="card p-5">
+              <div className="flex items-start justify-between mb-3">
+                      <div>
+                                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">{country}</p>p>
+                                <h3 className="text-white font-semibold mt-0.5">{title}</h3>h3>
+                      </div>div>
+                      <span className={c.badge}>
+                        {level === 'low' ? 'Bajo' : level === 'medium' ? 'Moderado' : 'Alto'}
+                      </span>span>
+              </div>div>
+              <div className="flex items-end justify-between">
+                      <div>
+                                <span className={clsx('text-3xl font-bold', c.text)}>{score}</span>span>
+                                <span className="text-slate-500 text-sm">/100</span>span>
+                      </div>div>
+                      <p className="text-xs text-slate-600">Actualizado {lastUpdated}</p>p>
+              </div>div>
+              <div className="mt-3 w-full bg-slate-800 rounded-full h-1.5">
+                      <div className={clsx('h-1.5 rounded-full', c.bar)} style={{ width: `${score}%` }} />
+              </div>div>
+        </div>div>
+      )
+}
+
+export default function DashboardPage() {
+    const { profile, user } = useAuthStore()
+        const navigate = useNavigate()
+            const [routes, setRoutes] = useState([])
+                const [alerts, setAlerts] = useState([])
+                    const [loading, setLoading] = useState(true)
+                      
+                        useEffect(() => {
+                              if (!user) return
+                                    const fetchData = async () => {
+                                            const [{ data: r }, { data: a }] = await Promise.all([
+                                                      supabase.from('routes').select('*').eq('user_id', user.id).eq('is_active', true).limit(6),
+                                                      supabase.from('alerts').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
+                                                    ])
+                                                    setRoutes(r || [])
+                                                            setAlerts(a || [])
+                                                                    setLoading(false)
+                                    }
+                                          fetchData()
+                        }, [user])
+                          
+                            const stats = [
+                              { label: 'Rutas activas', value: routes.length, icon: Route, color: 'text-brand-400' },
+                              { label: 'Alertas hoy', value: alerts.filter(a => new Date(a.created_at).toDateString() === new Date().toDateString()).length, icon: Bell, color: 'text-amber-400' },
+                              { label: 'Score promedio', value: routes.length ? Math.round(routes.reduce((acc, r) => acc + (r.risk_score || 50), 0) / routes.length) : '-', icon: TrendingUp, color: 'text-emerald-400' },
+                              { label: 'Analisis este mes', value: 0, icon: Shield, color: 'text-purple-400' },
+                                ]
+                              
+                                return (
+                                      <div className="p-6 max-w-7xl mx-auto">
+                                        {/* Header */}
+                                            <div className="flex items-center justify-between mb-8">
+                                                    <div>
+                                                              <h1 className="text-2xl font-bold text-white">
+                                                                          Bienvenido, {profile?.full_name?.split(' ')[0] || 'usuario'}
+                                                              </h1>h1>
+                                                              <p className="text-slate-400 text-sm mt-1">
+                                                                {profile?.company_name ? `${profile.company_name} · ` : ''}
+                                                                          Resumen de riesgo geopolitico
+                                                              </p>p>
+                                                    </div>div>
+                                                    <button
+                                                                onClick={() => navigate('/routes')}
+                                                                className="btn-primary flex items-center gap-2 text-sm"
+                                                              >
+                                                              <RefreshCw className="w-4 h-4" />
+                                                              Nuevo analisis
+                                                    </button>button>
+                                            </div>div>
+                                      
+                                        {/* Stats */}
+                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                              {stats.map(({ label, value, icon: Icon, color }) => (
+                                                  <div key={label} className="card p-4">
+                                                              <div className="flex items-center justify-between mb-2">
+                                                                            <p className="text-slate-400 text-xs font-medium">{label}</p>p>
+                                                                            <Icon className={clsx('w-4 h-4', color)} />
+                                                              </div>div>
+                                                              <p className="text-2xl font-bold text-white">{loading ? '-' : value}</p>p>
+                                                  </div>div>
+                                                ))}
+                                            </div>div>
+                                      
+                                            <div className="grid lg:grid-cols-3 gap-6">
+                                              {/* Risk cards */}
+                                                    <div className="lg:col-span-2">
+                                                              <div className="flex items-center justify-between mb-4">
+                                                                          <h2 className="text-white font-semibold">Rutas monitoreadas</h2>h2>
+                                                                          <button onClick={() => navigate('/routes')} className="text-brand-400 text-sm hover:text-brand-300">
+                                                                                        Ver todas
+                                                                          </button>button>
+                                                              </div>div>
+                                                      {loading ? (
+                                                    <div className="grid sm:grid-cols-2 gap-4">
+                                                      {[1,2,3,4].map(i => (
+                                                                      <div key={i} className="card p-5 animate-pulse">
+                                                                                        <div className="h-3 bg-slate-800 rounded w-1/2 mb-2" />
+                                                                                        <div className="h-4 bg-slate-800 rounded w-3/4 mb-4" />
+                                                                                        <div className="h-8 bg-slate-800 rounded w-1/4" />
+                                                                      </div>div>
+                                                                    ))}
+                                                    </div>div>
+                                                  ) : routes.length === 0 ? (
+                                                    <div className="card p-8 text-center">
+                                                                  <Route className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                                                                  <p className="text-slate-400 font-medium">No tienes rutas todavia</p>p>
+                                                                  <p className="text-slate-600 text-sm mt-1">Agrega tu primera ruta para empezar el monitoreo</p>p>
+                                                                  <button onClick={() => navigate('/routes')} className="btn-primary mt-4 text-sm">
+                                                                                  Agregar ruta
+                                                                  </button>button>
+                                                    </div>div>
+                                                  ) : (
+                                                    <div className="grid sm:grid-cols-2 gap-4">
+                                                      {routes.map(route => (
+                                                                      <RiskCard
+                                                                                          key={route.id}
+                                                                                          title={route.name}
+                                                                                          score={route.risk_score || 50}
+                                                                                          level={route.risk_score >= 70 ? 'high' : route.risk_score >= 40 ? 'medium' : 'low'}
+                                                                                          country={route.origin_country}
+                                                                                          lastUpdated="hoy"
+                                                                                        />
+                                                                    ))}
+                                                    </div>div>
+                                                              )}
+                                                    </div>div>
+                                            
+                                              {/* Alerts */}
+                                                    <div>
+                                                              <div className="flex items-center justify-between mb-4">
+                                                                          <h2 className="text-white font-semibold">Alertas recientes</h2>h2>
+                                                                          <button onClick={() => navigate('/alerts')} className="text-brand-400 text-sm hover:text-brand-300">
+                                                                                        Ver todas
+                                                                          </button>button>
+                                                              </div>div>
+                                                              <div className="card divide-y divide-slate-800">
+                                                                {loading ? (
+                                                      <div className="p-4 animate-pulse space-y-3">
+                                                        {[1,2,3].map(i => <div key={i} className="h-10 bg-slate-800 rounded" />)}
+                                                      </div>div>
+                                                    ) : alerts.length === 0 ? (
+                                                      <div className="p-6 text-center">
+                                                                      <Bell className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                                                                      <p className="text-slate-400 text-sm">Sin alertas activas</p>p>
+                                                      </div>div>
+                                                    ) : (
+                                                      alerts.map(alert => (
+                                                                        <div key={alert.id} className="p-3 flex items-start gap-3">
+                                                                                          <AlertTriangle className={clsx('w-4 h-4 mt-0.5 shrink-0',
+                                                                                                                                             alert.severity === 'high' ? 'text-red-400' : 'text-amber-400'
+                                                                                                                                           )} />
+                                                                                          <div className="flex-1 min-w-0">
+                                                                                                              <p className="text-slate-300 text-sm font-medium truncate">{alert.title}</p>p>
+                                                                                                              <div className="flex items-center gap-1 mt-0.5">
+                                                                                                                                    <Clock className="w-3 h-3 text-slate-600" />
+                                                                                                                                    <p className="text-slate-600 text-xs">
+                                                                                                                                      {new Date(alert.created_at).toLocaleDateString('es')}
+                                                                                                                                      </p>p>
+                                                                                                                </div>div>
+                                                                                            </div>div>
+                                                                        </div>div>
+                                                                      ))
+                                                    )}
+                                                              </div>div>
+                                                    </div>div>
+                                            </div>div>
+                                      </div>div>
+                                    )
+                                  }</div>
