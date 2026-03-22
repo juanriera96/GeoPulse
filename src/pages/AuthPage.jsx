@@ -1,0 +1,142 @@
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+import toast from 'react-hot-toast'
+import { Globe, Eye, EyeOff, Loader2 } from 'lucide-react'
+
+export default function AuthPage() {
+    const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const { signIn, signUp, user } = useAuthStore()
+
+  const [mode, setMode] = useState(searchParams.get('mode') === 'signup' ? 'signup' : 'signin')
+    const [loading, setLoading] = useState(false)
+    const [showPass, setShowPass] = useState(false)
+
+  const [form, setForm] = useState({ email: '', password: '', fullName: '' })
+
+  useEffect(() => {
+        if (user) navigate('/dashboard')
+  }, [user, navigate])
+
+  const handleSubmit = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+        try {
+                if (mode === 'signup') {
+                          const { error } = await signUp(form.email, form.password, form.fullName)
+                          if (error) throw error
+                          toast.success('Cuenta creada! Revisa tu email para confirmar.')
+                          navigate('/onboarding')
+                } else {
+                          const { error } = await signIn(form.email, form.password)
+                          if (error) throw error
+                          navigate('/dashboard')
+                }
+        } catch (err) {
+                toast.error(err.message || 'Error de autenticacion')
+        } finally {
+                setLoading(false)
+        }
+  }
+
+  return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+              <div className="w-full max-w-sm">
+                      <div className="text-center mb-8">
+                                <div className="flex items-center justify-center gap-2 mb-4">
+                                            <div className="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center">
+                                                          <Globe className="w-5 h-5 text-white" />
+                                            </div>div>
+                                            <span className="text-xl font-bold text-white">GeoPulse</span>span>
+                                </div>div>
+                                <h1 className="text-2xl font-bold text-white">
+                                  {mode === 'signup' ? 'Crear cuenta' : 'Bienvenido de vuelta'}
+                                </h1>h1>
+                                <p className="text-slate-400 text-sm mt-1">
+                                  {mode === 'signup' ? 'Empieza gratis, sin tarjeta requerida' : 'Ingresa a tu plataforma de riesgo'}
+                                </p>p>
+                      </div>div>
+              
+                      <div className="card p-6">
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                  {mode === 'signup' && (
+                        <div>
+                                        <label className="label">Nombre completo</label>label>
+                                        <input
+                                                            className="input"
+                                                            placeholder="Juan Garcia"
+                                                            value={form.fullName}
+                                                            onChange={e => setForm(prev => ({ ...prev, fullName: e.target.value }))}
+                                                            required
+                                                          />
+                        </div>div>
+                                            )}
+                                            <div>
+                                                          <label className="label">Email</label>label>
+                                                          <input
+                                                                            className="input"
+                                                                            type="email"
+                                                                            placeholder="juan@empresa.com"
+                                                                            value={form.email}
+                                                                            onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
+                                                                            required
+                                                                          />
+                                            </div>div>
+                                            <div>
+                                                          <label className="label">Contrasena</label>label>
+                                                          <div className="relative">
+                                                                          <input
+                                                                                              className="input pr-10"
+                                                                                              type={showPass ? 'text' : 'password'}
+                                                                                              placeholder="Minimo 8 caracteres"
+                                                                                              value={form.password}
+                                                                                              onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
+                                                                                              required
+                                                                                              minLength={8}
+                                                                                            />
+                                                                          <button
+                                                                                              type="button"
+                                                                                              onClick={() => setShowPass(!showPass)}
+                                                                                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                                                                                            >
+                                                                            {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                                          </button>button>
+                                                          </div>div>
+                                            </div>div>
+                                            <button
+                                                            type="submit"
+                                                            disabled={loading}
+                                                            className="btn-primary w-full flex items-center justify-center gap-2 py-2.5"
+                                                          >
+                                              {loading
+                                                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando...</>>
+                                                                : mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesion'
+                                              }
+                                            </button>button>
+                                </form>form>
+                      
+                                <div className="mt-4 text-center text-sm text-slate-400">
+                                  {mode === 'signup' ? (
+                        <>Ya tienes cuenta?{' '}
+                                        <button onClick={() => setMode('signin')} className="text-brand-400 hover:text-brand-300 font-medium">
+                                                          Iniciar sesion
+                                        </button>button>
+                        </>>
+                      ) : (
+                        <>No tienes cuenta?{' '}
+                                        <button onClick={() => setMode('signup')} className="text-brand-400 hover:text-brand-300 font-medium">
+                                                          Registrarse gratis
+                                        </button>button>
+                        </>>
+                      )}
+                                </div>div>
+                      </div>div>
+              
+                      <p className="text-center text-xs text-slate-600 mt-6">
+                                Al continuar aceptas nuestros Terminos de Uso y Politica de Privacidad
+                      </p>p>
+              </div>div>
+        </div>div>
+      )
+}</></></></div>
