@@ -7,8 +7,8 @@ import AuthPage from './pages/AuthPage'
 import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage from './pages/DashboardPage'
 import AppLayout from './components/layout/AppLayout'
-import { RoutesPage, AlertsPage, ReportsPage, SettingsPage } from './pages/OtherPages'
-
+import RoutesPage from './pages/RoutesPage'
+import { AlertsPage, ReportsPage, SettingsPage } from './pages/OtherPages'
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
     if (loading) {
