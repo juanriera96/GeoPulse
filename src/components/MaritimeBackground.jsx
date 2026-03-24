@@ -191,7 +191,7 @@ export default function MaritimeBackground({ className = '' }) {
       }
     }
 
-    // ---- PLANES ----
+    // ---- PLANES (Boeing 747 Freighter) ----
     class Plane {
       constructor(yRatio, speed, scale, alpha, fromRight) {
         this.fromRight = fromRight
@@ -204,9 +204,9 @@ export default function MaritimeBackground({ className = '' }) {
       }
       reset(init) {
         if (this.fromRight) {
-          this.x = init ? Math.random() * canvas.width : canvas.width + 200
+          this.x = init ? Math.random() * canvas.width : canvas.width + 400
         } else {
-          this.x = init ? Math.random() * canvas.width : -200
+          this.x = init ? Math.random() * canvas.width : -400
         }
         this.contrailPoints = []
       }
@@ -216,125 +216,325 @@ export default function MaritimeBackground({ className = '' }) {
         const cy = canvas.height * this.yRatio
         const dir = this.fromRight ? -1 : 1
 
+        // Store contrail points (two trails for the wingtip vortices)
         this.contrailPoints.push({ x: cx, y: cy })
-        if (this.contrailPoints.length > 80) this.contrailPoints.shift()
+        if (this.contrailPoints.length > 100) this.contrailPoints.shift()
 
-        // Contrail
+        // Draw two parallel contrails (engine exhaust)
         ctx.save()
-        ctx.globalAlpha = this.alpha * 0.35
-        for (let i = 1; i < this.contrailPoints.length; i++) {
-          const prog = i / this.contrailPoints.length
-          ctx.beginPath()
-          ctx.moveTo(this.contrailPoints[i - 1].x, this.contrailPoints[i - 1].y)
-          ctx.lineTo(this.contrailPoints[i].x, this.contrailPoints[i].y)
-          ctx.strokeStyle = `rgba(220,235,255,${prog * 0.5})`
-          ctx.lineWidth = prog * 3 * sc
-          ctx.stroke()
-        }
+        ctx.globalAlpha = this.alpha * 0.3
+        const offsets = [-9 * sc, 9 * sc]
+        offsets.forEach(offset => {
+          for (let i = 1; i < this.contrailPoints.length; i++) {
+            const prog = i / this.contrailPoints.length
+            const width = prog * 4 * sc
+            ctx.beginPath()
+            ctx.moveTo(this.contrailPoints[i - 1].x, this.contrailPoints[i - 1].y + offset)
+            ctx.lineTo(this.contrailPoints[i].x, this.contrailPoints[i].y + offset)
+            ctx.strokeStyle = `rgba(230,240,255,${prog * 0.4})`
+            ctx.lineWidth = width
+            ctx.stroke()
+          }
+        })
         ctx.restore()
 
-        // Plane body
+        // Draw Boeing 747 Freighter
         ctx.save()
         ctx.globalAlpha = this.alpha
         ctx.translate(cx, cy)
         ctx.scale(dir * sc, sc)
 
-        // Fuselage
+        // === FUSELAGE - wide body, cylindrical ===
+        // Main fuselage body (double-deck proportions)
         ctx.beginPath()
-        ctx.ellipse(0, 0, 28, 5, 0, 0, Math.PI * 2)
-        ctx.fillStyle = '#dde8f0'
+        ctx.ellipse(0, 0, 52, 9, 0, 0, Math.PI * 2)
+        ctx.fillStyle = '#e8eef4'
         ctx.fill()
 
-        // Nose
+        // Upper deck hump (747 characteristic)
         ctx.beginPath()
-        ctx.moveTo(28, 0)
-        ctx.lineTo(38, 1)
-        ctx.lineTo(28, 2)
-        ctx.fillStyle = '#c8d8e8'
+        ctx.ellipse(14, -5, 26, 6, -0.1, 0, Math.PI * 2)
+        ctx.fillStyle = '#dde5ee'
         ctx.fill()
 
-        // Main wings
+        // Nose - pointed and slightly downward (747 characteristic)
         ctx.beginPath()
-        ctx.moveTo(0, 0)
-        ctx.lineTo(-8, -22)
-        ctx.lineTo(-18, -24)
-        ctx.lineTo(-20, -20)
-        ctx.lineTo(-4, -3)
+        ctx.moveTo(52, 0)
+        ctx.bezierCurveTo(62, -1, 68, 1, 72, 3)
+        ctx.bezierCurveTo(68, 4, 62, 4, 52, 8)
         ctx.closePath()
-        ctx.fillStyle = '#c8d8e8'
+        ctx.fillStyle = '#c8d4e0'
         ctx.fill()
 
+        // Cockpit windows (747 distinctive 6-window pattern)
         ctx.beginPath()
-        ctx.moveTo(0, 0)
-        ctx.lineTo(-8, 22)
-        ctx.lineTo(-18, 24)
-        ctx.lineTo(-20, 20)
-        ctx.lineTo(-4, 3)
-        ctx.closePath()
-        ctx.fillStyle = '#c8d8e8'
+        ctx.fillStyle = 'rgba(100,180,255,0.75)'
+        for (let w = 0; w < 3; w++) {
+          ctx.rect(53 + w * 4, -3.5, 3, 4)
+        }
         ctx.fill()
 
-        // Tail fin
+        // Fuselage nose radome (weather radar)
         ctx.beginPath()
-        ctx.moveTo(-22, 0)
-        ctx.lineTo(-28, -12)
-        ctx.lineTo(-32, -11)
-        ctx.lineTo(-26, 0)
-        ctx.closePath()
-        ctx.fillStyle = '#b8c8d8'
+        ctx.arc(70, 2, 3, 0, Math.PI * 2)
+        ctx.fillStyle = '#889aa8'
         ctx.fill()
 
-        // Tail wing
+        // Cargo door outline (main deck cargo door on left side)
         ctx.beginPath()
-        ctx.moveTo(-24, 0)
-        ctx.lineTo(-30, -8)
-        ctx.lineTo(-34, -7)
-        ctx.lineTo(-28, 2)
-        ctx.closePath()
-        ctx.fillStyle = '#b8c8d8'
-        ctx.fill()
+        ctx.strokeStyle = 'rgba(100,140,180,0.5)'
+        ctx.lineWidth = 0.8
+        ctx.rect(20, -9, 16, 9)
+        ctx.stroke()
 
-        ctx.beginPath()
-        ctx.moveTo(-24, 0)
-        ctx.lineTo(-30, 8)
-        ctx.lineTo(-34, 7)
-        ctx.lineTo(-28, -2)
-        ctx.closePath()
-        ctx.fillStyle = '#b8c8d8'
-        ctx.fill()
-
-        // Windows
-        for (let w = 0; w < 7; w++) {
+        // Fuselage windows line (main deck)
+        ctx.fillStyle = 'rgba(140,200,255,0.5)'
+        for (let w = 0; w < 14; w++) {
           ctx.beginPath()
-          ctx.rect(8 - w * 5, -2.5, 3, 3)
-          ctx.fillStyle = 'rgba(180,220,255,0.8)'
+          ctx.rect(-30 + w * 5.5, -3, 3.5, 3)
           ctx.fill()
         }
 
-        // Engine pods
+        // Fuselage stripe (airline livery)
         ctx.beginPath()
-        ctx.ellipse(-6, -14, 8, 3, -0.2, 0, Math.PI * 2)
-        ctx.fillStyle = '#889aa8'
+        ctx.moveTo(-48, 3)
+        ctx.lineTo(50, 3)
+        ctx.strokeStyle = 'rgba(30,80,160,0.6)'
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        // Tail bottom stripe accent
+        ctx.beginPath()
+        ctx.moveTo(-48, 5)
+        ctx.lineTo(48, 5)
+        ctx.strokeStyle = 'rgba(50,120,200,0.3)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+
+        // === WINGS - large swept wings ===
+        // Right wing (upper)
+        ctx.beginPath()
+        ctx.moveTo(10, -8)
+        ctx.lineTo(0, -38)
+        ctx.lineTo(-12, -44)
+        ctx.lineTo(-22, -42)
+        ctx.lineTo(-18, -30)
+        ctx.lineTo(-6, -8)
+        ctx.closePath()
+        ctx.fillStyle = '#cdd8e4'
         ctx.fill()
+        ctx.strokeStyle = 'rgba(120,160,200,0.3)'
+        ctx.lineWidth = 0.5
+        ctx.stroke()
+
+        // Left wing (lower)
         ctx.beginPath()
-        ctx.ellipse(-6, 14, 8, 3, 0.2, 0, Math.PI * 2)
-        ctx.fillStyle = '#889aa8'
+        ctx.moveTo(10, 8)
+        ctx.lineTo(0, 38)
+        ctx.lineTo(-12, 44)
+        ctx.lineTo(-22, 42)
+        ctx.lineTo(-18, 30)
+        ctx.lineTo(-6, 8)
+        ctx.closePath()
+        ctx.fillStyle = '#cdd8e4'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(120,160,200,0.3)'
+        ctx.lineWidth = 0.5
+        ctx.stroke()
+
+        // Wing leading edge highlight
+        ctx.beginPath()
+        ctx.moveTo(10, -8)
+        ctx.lineTo(-12, -44)
+        ctx.strokeStyle = 'rgba(200,215,230,0.6)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(10, 8)
+        ctx.lineTo(-12, 44)
+        ctx.strokeStyle = 'rgba(200,215,230,0.6)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+
+        // Winglets (upturned wingtips - modern 747-8F has these)
+        ctx.beginPath()
+        ctx.moveTo(-20, -43)
+        ctx.lineTo(-26, -49)
+        ctx.lineTo(-28, -46)
+        ctx.lineTo(-22, -42)
+        ctx.closePath()
+        ctx.fillStyle = '#b8c8d8'
         ctx.fill()
 
-        // Nav lights
         ctx.beginPath()
-        ctx.arc(-18, -23, 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255,80,80,${0.6 + 0.4 * Math.sin(t * 3)})`
+        ctx.moveTo(-20, 43)
+        ctx.lineTo(-26, 49)
+        ctx.lineTo(-28, 46)
+        ctx.lineTo(-22, 42)
+        ctx.closePath()
+        ctx.fillStyle = '#b8c8d8'
+        ctx.fill()
+
+        // === ENGINES - 4 under-wing CFM56/GE CF6 style ===
+        // Engine 1 (inner, right wing)
+        ctx.beginPath()
+        ctx.ellipse(-2, -20, 12, 4, -0.15, 0, Math.PI * 2)
+        ctx.fillStyle = '#6a7e8e'
         ctx.fill()
         ctx.beginPath()
-        ctx.arc(-18, 23, 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(80,255,80,${0.6 + 0.4 * Math.sin(t * 3 + 1)})`
+        ctx.arc(-12, -20, 4.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#3a4e5e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-12, -20, 2.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#1a2530'
+        ctx.fill()
+
+        // Engine 2 (outer, right wing)
+        ctx.beginPath()
+        ctx.ellipse(-13, -34, 10, 3.5, -0.15, 0, Math.PI * 2)
+        ctx.fillStyle = '#6a7e8e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-22, -34, 4, 0, Math.PI * 2)
+        ctx.fillStyle = '#3a4e5e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-22, -34, 2, 0, Math.PI * 2)
+        ctx.fillStyle = '#1a2530'
+        ctx.fill()
+
+        // Engine 3 (inner, left wing)
+        ctx.beginPath()
+        ctx.ellipse(-2, 20, 12, 4, 0.15, 0, Math.PI * 2)
+        ctx.fillStyle = '#6a7e8e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-12, 20, 4.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#3a4e5e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-12, 20, 2.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#1a2530'
+        ctx.fill()
+
+        // Engine 4 (outer, left wing)
+        ctx.beginPath()
+        ctx.ellipse(-13, 34, 10, 3.5, 0.15, 0, Math.PI * 2)
+        ctx.fillStyle = '#6a7e8e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-22, 34, 4, 0, Math.PI * 2)
+        ctx.fillStyle = '#3a4e5e'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(-22, 34, 2, 0, Math.PI * 2)
+        ctx.fillStyle = '#1a2530'
+        ctx.fill()
+
+        // Engine pylons (struts connecting engines to wings)
+        ctx.strokeStyle = '#7a8e9e'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(-2, -18)
+        ctx.lineTo(-1, -9)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(-14, -32)
+        ctx.lineTo(-12, -26)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(-2, 18)
+        ctx.lineTo(-1, 9)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(-14, 32)
+        ctx.lineTo(-12, 26)
+        ctx.stroke()
+
+        // Engine exhaust glow
+        ctx.globalAlpha = this.alpha * 0.15
+        const enginePositions = [[-12, -20], [-22, -34], [-12, 20], [-22, 34]]
+        enginePositions.forEach(([ex, ey]) => {
+          const grad = ctx.createRadialGradient(ex + 8, ey, 0, ex + 8, ey, 12)
+          grad.addColorStop(0, 'rgba(255,200,80,0.8)')
+          grad.addColorStop(0.5, 'rgba(255,140,40,0.3)')
+          grad.addColorStop(1, 'rgba(255,80,0,0)')
+          ctx.beginPath()
+          ctx.ellipse(ex + 10, ey, 14, 4, 0, 0, Math.PI * 2)
+          ctx.fillStyle = grad
+          ctx.fill()
+        })
+        ctx.globalAlpha = this.alpha
+
+        // === TAIL ASSEMBLY ===
+        // Horizontal stabilizers
+        ctx.beginPath()
+        ctx.moveTo(-38, -6)
+        ctx.lineTo(-44, -18)
+        ctx.lineTo(-52, -20)
+        ctx.lineTo(-52, -16)
+        ctx.lineTo(-44, -14)
+        ctx.lineTo(-38, -6)
+        ctx.closePath()
+        ctx.fillStyle = '#c0ccd8'
+        ctx.fill()
+
+        ctx.beginPath()
+        ctx.moveTo(-38, 6)
+        ctx.lineTo(-44, 18)
+        ctx.lineTo(-52, 20)
+        ctx.lineTo(-52, 16)
+        ctx.lineTo(-44, 14)
+        ctx.lineTo(-38, 6)
+        ctx.closePath()
+        ctx.fillStyle = '#c0ccd8'
+        ctx.fill()
+
+        // Vertical stabilizer (tall)
+        ctx.beginPath()
+        ctx.moveTo(-36, -7)
+        ctx.lineTo(-42, -28)
+        ctx.lineTo(-50, -30)
+        ctx.lineTo(-52, -24)
+        ctx.lineTo(-42, -8)
+        ctx.lineTo(-38, -7)
+        ctx.closePath()
+        ctx.fillStyle = '#b8c5d2'
+        ctx.fill()
+
+        // Airline tail logo (blue geometric on tail fin)
+        ctx.beginPath()
+        ctx.fillStyle = 'rgba(20,60,160,0.6)'
+        ctx.rect(-50, -29, 8, 8)
+        ctx.fill()
+
+        // === LANDING GEAR (retracted - just bumps visible) ===
+        ctx.beginPath()
+        ctx.ellipse(-5, 9, 5, 2.5, 0, 0, Math.PI * 2)
+        ctx.fillStyle = '#8a9eae'
+        ctx.fill()
+
+        // === NAVIGATION LIGHTS ===
+        // Red wingtip light (right)
+        ctx.beginPath()
+        ctx.arc(-20, -43, 2, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255,60,60,${0.7 + 0.3 * Math.sin(t * 3)})`
+        ctx.fill()
+        // Green wingtip light (left)
+        ctx.beginPath()
+        ctx.arc(-20, 43, 2, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(60,255,100,${0.7 + 0.3 * Math.sin(t * 3 + 1)})`
+        ctx.fill()
+        // White strobe (belly)
+        ctx.beginPath()
+        ctx.arc(0, 9, 1.5, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255,255,255,${Math.sin(t * 5) > 0.8 ? 0.9 : 0.1})`
         ctx.fill()
 
         ctx.restore()
       }
     }
-
     // Create entities
     const ships = [
       new Ship(canvas.height * 0.72, 0.25, 1.1, 0.85),
