@@ -190,7 +190,7 @@ const emptyForm = {
 
 
 
-  description: '', origin_country: '', destination_country: '',
+  name: '', origin_country: '', destination_country: '',
 
 
 
@@ -882,7 +882,7 @@ export default function RoutesPage() {
 
 
 
-    if (!form.description.trim()) return toast.error('Nombre de ruta requerido')
+    if (!form.name.trim()) return toast.error('Nombre de ruta requerido')
 
 
 
@@ -1150,7 +1150,7 @@ export default function RoutesPage() {
 
 
 
-      description: route.description || route.name || '',
+      name: route.description || route.name || '',
 
 
 
@@ -2906,11 +2906,11 @@ export default function RoutesPage() {
 
 
 
-                  value={form.description}
+                  value={form.name}
 
 
 
-                  onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
 
 
 
