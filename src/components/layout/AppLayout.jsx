@@ -116,7 +116,7 @@ export default function AppLayout() {
           </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto relative z-10">
         <Outlet />
       </main>
     </div>
