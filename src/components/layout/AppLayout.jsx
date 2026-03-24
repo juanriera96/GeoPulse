@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useEffect, useState, useRef } from 'react'
 import clsx from 'clsx'
 import { LayoutDashboard, Globe, Bell, FileText, Settings, LogOut, ChevronRight, AlertTriangle, Shield, User, ChevronDown } from 'lucide-react'
+import DashboardBackground from '../DashboardBackground'
 
 export default function AppLayout() {
   const { signOut, profile, user } = useAuthStore()
@@ -46,7 +47,8 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden">
-      <aside className="w-60 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
+      <DashboardBackground />
+      <aside className="w-60 flex-shrink-0 bg-slate-900/95 border-r border-slate-800 flex flex-col relative z-10">
         <div className="p-5 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
