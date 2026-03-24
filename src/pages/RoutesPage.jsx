@@ -4,22 +4,40 @@ import { useAuthStore } from '../store/authStore'
 import {
   Globe, Plus, Trash2, Edit2, X, Package, TrendingUp, MapPin, Zap,
   Loader2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle,
-  Clock, Info, Shield, Anchor, BarChart3, FileText, RefreshCw
+  Clock, Info, Shield, Anchor, BarChart3, FileText, RefreshCw,
+  Ship, Plane, Truck, ArrowRight, Activity, TrendingDown, Minus
 } from 'lucide-react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 
 const CARGO_TYPES = [
-  'Electronica', 'Textil', 'Alimentos', 'Maquinaria', 'Quimicos',
-  'Automotriz', 'Farmaceutico', 'Materias primas', 'Otro'
+  'Componentes electrónicos', 'Textil y confección', 'Alimentos y perecederos',
+  'Maquinaria y equipos', 'Químicos y farmacéuticos', 'Automotriz y autopartes',
+  'Materias primas', 'Productos terminados', 'Energía y combustibles', 'Otro'
 ]
 
 const COUNTRIES = [
-  'China', 'Mexico', 'Canada', 'Alemania', 'Japan', 'Vietnam', 'India',
-  'Corea del Sur', 'Taiwan', 'Brasil', 'Indonesia', 'Italia', 'Francia',
-  'Reino Unido', 'Turquia', 'Poland', 'Rusia', 'Tailandia', 'Malasia',
-  'Australia', 'EE.UU.'
+  'China', 'México', 'Canadá', 'Alemania', 'Japón', 'Vietnam', 'India',
+  'Corea del Sur', 'Taiwán', 'Brasil', 'Indonesia', 'Italia', 'Francia',
+  'Reino Unido', 'Turquía', 'Polonia', 'Tailandia', 'Malasia',
+  'Australia', 'Estados Unidos', 'España', 'Países Bajos', 'Bélgica',
+  'Argentina', 'Chile', 'Colombia'
 ]
+
+const INCOTERMS = ['FOB', 'CIF', 'EXW', 'DAP', 'DDP', 'CFR', 'FCA', 'CPT', 'CIP']
+
+const TRANSPORT_MODES = [
+  { value: 'maritimo', label: 'Marítimo', icon: '🚢' },
+  { value: 'aereo', label: 'Aéreo', icon: '✈️' },
+  { value: 'terrestre', label: 'Terrestre', icon: '🚛' },
+  { value: 'multimodal', label: 'Multimodal', icon: '🔄' },
+]
+
+const emptyForm = {
+  name: '', origin_country: '', destination_country: '',
+  cargo_type: '', incoterm: '', transport_mode: '',
+  port_of_origin: '', port_of_destination: ''
+}
 
 function riskColor(score) {
   if (score === null || score === undefined) return 'text-slate-400'
@@ -27,54 +45,118 @@ function riskColor(score) {
   if (score >= 40) return 'text-amber-400'
   return 'text-emerald-400'
 }
-
+function riskBg(score) {
+  if (score === null || score === undefined) return 'bg-slate-800 border-slate-700'
+  if (score >= 70) return 'bg-red-950/30 border-red-900/50'
+  if (score >= 40) return 'bg-amber-950/30 border-amber-900/50'
+  return 'bg-emerald-950/30 border-emerald-900/50'
+}
 function riskLabel(score) {
   if (score === null || score === undefined) return 'Sin analizar'
-  if (score >= 70) return 'Alto'
-  if (score >= 40) return 'Medio'
-  return 'Bajo'
+  if (score >= 70) return 'Alto Riesgo'
+  if (score >= 40) return 'Riesgo Medio'
+  return 'Bajo Riesgo'
 }
-
-function riskBg(score) {
-  if (score === null || score === undefined) return 'bg-slate-700'
+function riskBarColor(score) {
+  if (score === null || score === undefined) return 'bg-slate-600'
   if (score >= 70) return 'bg-red-500'
   if (score >= 40) return 'bg-amber-500'
   return 'bg-emerald-500'
 }
-
-function riskBgLight(score) {
-  if (score === null || score === undefined) return 'bg-slate-800 border-slate-700'
-  if (score >= 70) return 'bg-red-500/10 border-red-500/30'
-  if (score >= 40) return 'bg-amber-500/10 border-amber-500/30'
-  return 'bg-emerald-500/10 border-emerald-500/30'
-}
-
-function severityIcon(sev) {
-  if (sev === 'high') return <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-  if (sev === 'medium') return <Info className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-  return <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-}
-
-function priorityLabel(p) {
-  if (p === 'immediate') return { text: 'Inmediato', cls: 'text-red-400 bg-red-500/10' }
-  if (p === 'short_term') return { text: 'Corto plazo', cls: 'text-amber-400 bg-amber-500/10' }
-  return { text: 'Largo plazo', cls: 'text-slate-400 bg-slate-700' }
-}
-
-const emptyForm = {
-  origin_country: '',
-  destination_country: '',
-  cargo_type: '',
-  description: '',
-}
-
 function getLatestAnalysis(route) {
   if (!route.risk_analyses?.length) return null
   return route.risk_analyses[0]
 }
-
 function getLatestScore(route) {
   return getLatestAnalysis(route)?.risk_score ?? null
+}
+
+// SVG Sparkline component for risk score history
+function RiskSparkline({ analyses }) {
+  if (!analyses || analyses.length < 2) {
+    return (
+      <div className="flex items-center justify-center h-12 text-xs text-slate-600">
+        Se necesitan al menos 2 análisis para mostrar tendencia
+      </div>
+    )
+  }
+
+  const sorted = [...analyses].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  const scores = sorted.map(a => a.risk_score)
+  const w = 300, h = 60, pad = 8
+  const minS = 0, maxS = 100
+  const xStep = (w - pad * 2) / (scores.length - 1)
+
+  const pts = scores.map((s, i) => {
+    const x = pad + i * xStep
+    const y = h - pad - ((s - minS) / (maxS - minS)) * (h - pad * 2)
+    return `${x},${y}`
+  }).join(' ')
+
+  const areaPoints = [
+    `${pad},${h - pad}`,
+    ...scores.map((s, i) => {
+      const x = pad + i * xStep
+      const y = h - pad - ((s - minS) / (maxS - minS)) * (h - pad * 2)
+      return `${x},${y}`
+    }),
+    `${pad + (scores.length - 1) * xStep},${h - pad}`
+  ].join(' ')
+
+  const lastScore = scores[scores.length - 1]
+  const firstScore = scores[0]
+  const trend = lastScore - firstScore
+  const lineColor = lastScore >= 70 ? '#f87171' : lastScore >= 40 ? '#fbbf24' : '#34d399'
+  const fillColor = lastScore >= 70 ? '#7f1d1d' : lastScore >= 40 ? '#78350f' : '#064e3b'
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-slate-500">Tendencia ({analyses.length} análisis)</span>
+        <div className={`flex items-center gap-1 ${trend > 5 ? 'text-red-400' : trend < -5 ? 'text-emerald-400' : 'text-slate-400'}`}>
+          {trend > 5 ? <TrendingUp className="w-3 h-3" /> : trend < -5 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+          <span>{trend > 0 ? '+' : ''}{trend.toFixed(0)} pts</span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-14">
+        {/* Danger zone line at 70 */}
+        <line
+          x1={pad} y1={h - pad - (70 / 100) * (h - pad * 2)}
+          x2={w - pad} y2={h - pad - (70 / 100) * (h - pad * 2)}
+          stroke="#7f1d1d" strokeDasharray="3 2" strokeWidth="0.5" opacity="0.5"
+        />
+        {/* Medium zone line at 40 */}
+        <line
+          x1={pad} y1={h - pad - (40 / 100) * (h - pad * 2)}
+          x2={w - pad} y2={h - pad - (40 / 100) * (h - pad * 2)}
+          stroke="#78350f" strokeDasharray="3 2" strokeWidth="0.5" opacity="0.5"
+        />
+        {/* Area fill */}
+        <polygon points={areaPoints} fill={fillColor} opacity="0.3" />
+        {/* Line */}
+        <polyline points={pts} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Data points */}
+        {scores.map((s, i) => {
+          const x = pad + i * xStep
+          const y = h - pad - ((s - minS) / (maxS - minS)) * (h - pad * 2)
+          return (
+            <circle key={i} cx={x} cy={y} r="2.5"
+              fill={s >= 70 ? '#f87171' : s >= 40 ? '#fbbf24' : '#34d399'}
+              stroke="#1e293b" strokeWidth="1"
+            />
+          )
+        })}
+      </svg>
+      <div className="flex justify-between text-xs text-slate-600">
+        {sorted.slice(0, 1).map(a => (
+          <span key="first">{new Date(a.created_at).toLocaleDateString('es', { month: 'short', day: 'numeric' })}</span>
+        ))}
+        {sorted.slice(-1).map(a => (
+          <span key="last">{new Date(a.created_at).toLocaleDateString('es', { month: 'short', day: 'numeric' })}</span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function RoutesPage() {
@@ -88,6 +170,7 @@ export default function RoutesPage() {
   const [analyzingId, setAnalyzingId] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [filterLevel, setFilterLevel] = useState('all')
+  const [activeTab, setActiveTab] = useState('analysis')
 
   useEffect(() => {
     if (user) fetchRoutes()
@@ -100,7 +183,7 @@ export default function RoutesPage() {
       .select(`
         *,
         risk_analyses(
-          risk_score, risk_level, summary,
+          id, risk_score, risk_level, summary,
           factors, recommendations, trade_data,
           created_at
         )
@@ -109,95 +192,54 @@ export default function RoutesPage() {
       .order('created_at', { ascending: false })
     if (error) {
       toast.error('Error cargando rutas')
-    } else {
-      setRoutes(data || [])
+      setLoading(false)
+      return
     }
+    // Sort analyses by date desc for each route
+    const processed = (data || []).map(r => ({
+      ...r,
+      risk_analyses: (r.risk_analyses || []).sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      )
+    }))
+    setRoutes(processed)
     setLoading(false)
   }
 
-  function openCreate() {
-    setEditingRoute(null)
-    setForm(emptyForm)
-    setShowModal(true)
-  }
-
-  function openEdit(route) {
-    setEditingRoute(route)
-    setForm({
-      origin_country: route.origin_country,
-      destination_country: route.destination_country,
-      cargo_type: route.cargo_type,
-      description: route.description || '',
-    })
-    setShowModal(true)
-  }
-
-  function closeModal() {
-    setShowModal(false)
-    setEditingRoute(null)
-    setForm(emptyForm)
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.origin_country || !form.destination_country || !form.cargo_type) {
-      toast.error('Completa todos los campos requeridos')
-      return
-    }
-    if (form.origin_country === form.destination_country) {
-      toast.error('El pais de origen y destino no pueden ser iguales')
-      return
-    }
+  async function handleSave() {
+    if (!form.name.trim()) return toast.error('Nombre de ruta requerido')
+    if (!form.origin_country) return toast.error('País de origen requerido')
+    if (!form.destination_country) return toast.error('País de destino requerido')
+    if (!form.cargo_type) return toast.error('Tipo de mercancía requerido')
     setSaving(true)
-    if (editingRoute) {
-      const { error } = await supabase
-        .from('routes')
-        .update({
-          origin_country: form.origin_country,
-          destination_country: form.destination_country,
-          cargo_type: form.cargo_type,
-          description: form.description,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingRoute.id)
-      if (error) {
-        toast.error('Error actualizando ruta')
+    try {
+      const payload = { ...form, user_id: user.id }
+      if (editingRoute) {
+        const { error } = await supabase.from('routes').update(payload).eq('id', editingRoute.id)
+        if (error) throw error
+        toast.success('Ruta actualizada')
       } else {
-        toast.success('Ruta actualizada correctamente')
-        closeModal()
-        fetchRoutes()
+        const { error } = await supabase.from('routes').insert(payload)
+        if (error) throw error
+        toast.success('Ruta creada')
       }
-    } else {
-      const { error } = await supabase
-        .from('routes')
-        .insert({
-          user_id: user.id,
-          origin_country: form.origin_country,
-          destination_country: form.destination_country,
-          cargo_type: form.cargo_type,
-          description: form.description,
-        })
-      if (error) {
-        toast.error('Error creando ruta')
-      } else {
-        toast.success('Ruta creada exitosamente')
-        closeModal()
-        fetchRoutes()
-      }
+      setShowModal(false)
+      setEditingRoute(null)
+      setForm(emptyForm)
+      fetchRoutes()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   async function handleDelete(id) {
-    if (!confirm('Estas seguro que deseas eliminar esta ruta? Esta accion no se puede deshacer.')) return
+    if (!confirm('¿Eliminar esta ruta y todos sus análisis?')) return
     const { error } = await supabase.from('routes').delete().eq('id', id)
-    if (error) {
-      toast.error('Error eliminando ruta')
-    } else {
-      toast.success('Ruta eliminada')
-      setRoutes(prev => prev.filter(r => r.id !== id))
-      if (expandedId === id) setExpandedId(null)
-    }
+    if (error) return toast.error(err.message)
+    toast.success('Ruta eliminada')
+    fetchRoutes()
   }
 
   async function handleAnalyze(route) {
@@ -207,347 +249,440 @@ export default function RoutesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          origin: route.origin_country,
-          destination: route.destination_country,
-          cargo: route.cargo_type,
           routeId: route.id,
           userId: user.id,
+          originCountry: route.origin_country,
+          destinationCountry: route.destination_country,
+          cargoType: route.cargo_type,
+          incoterm: route.incoterm,
+          transportMode: route.transport_mode,
         }),
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Error en el analisis')
-      }
-      const result = await res.json()
-      const level = result.score >= 70 ? 'ALTO' : result.score >= 40 ? 'MODERADO' : 'BAJO'
-      toast.success('Analisis completado — Riesgo ' + level + ': ' + result.score + '/100')
-      await fetchRoutes()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error en análisis')
+      toast.success('Análisis completado')
       setExpandedId(route.id)
+      setActiveTab('analysis')
+      fetchRoutes()
     } catch (err) {
-      toast.error(err.message || 'Error al analizar la ruta')
+      toast.error(err.message)
     } finally {
       setAnalyzingId(null)
     }
   }
 
-  const filteredRoutes = routes.filter(r => {
+  function openEdit(route) {
+    setEditingRoute(route)
+    setForm({
+      name: route.name,
+      origin_country: route.origin_country,
+      destination_country: route.destination_country,
+      cargo_type: route.cargo_type,
+      incoterm: route.incoterm || '',
+      transport_mode: route.transport_mode || '',
+      port_of_origin: route.port_of_origin || '',
+      port_of_destination: route.port_of_destination || '',
+    })
+    setShowModal(true)
+  }
+
+  const filtered = routes.filter(r => {
     if (filterLevel === 'all') return true
-    const s = getLatestScore(r)
-    if (filterLevel === 'unanalyzed') return s === null
-    if (filterLevel === 'high') return s !== null && s >= 70
-    if (filterLevel === 'medium') return s !== null && s >= 40 && s < 70
-    if (filterLevel === 'low') return s !== null && s < 40
+    const score = getLatestScore(r)
+    if (filterLevel === 'critical') return score !== null && score >= 70
+    if (filterLevel === 'medium') return score !== null && score >= 40 && score < 70
+    if (filterLevel === 'low') return score !== null && score < 40
+    if (filterLevel === 'unanalyzed') return score === null
     return true
   })
 
   const counts = {
     all: routes.length,
-    high: routes.filter(r => { const s = getLatestScore(r); return s !== null && s >= 70 }).length,
+    critical: routes.filter(r => { const s = getLatestScore(r); return s !== null && s >= 70 }).length,
     medium: routes.filter(r => { const s = getLatestScore(r); return s !== null && s >= 40 && s < 70 }).length,
     low: routes.filter(r => { const s = getLatestScore(r); return s !== null && s < 40 }).length,
     unanalyzed: routes.filter(r => getLatestScore(r) === null).length,
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-      </div>
-    )
-  }
-
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Mis Rutas de Importacion</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {routes.length} {routes.length === 1 ? 'ruta registrada' : 'rutas registradas'} —
-            {counts.high > 0 && <span className="text-red-400"> {counts.high} critica{counts.high > 1 ? 's' : ''}</span>}
-            {counts.medium > 0 && <span className="text-amber-400"> {counts.medium} moderada{counts.medium > 1 ? 's' : ''}</span>}
-            {counts.unanalyzed > 0 && <span className="text-slate-500"> {counts.unanalyzed} sin analizar</span>}
+          <h1 className="text-xl font-bold text-white">Rutas Comerciales</h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Monitoreo y análisis de riesgo geopolítico por ruta de importación/exportación
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={fetchRoutes}
-            className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-            title="Actualizar"
-          >
-            <RefreshCw className="w-4 h-4" />
+          <button onClick={fetchRoutes} className="btn-ghost p-2 rounded-lg" title="Actualizar">
+            <RefreshCw className="w-4 h-4 text-slate-400" />
           </button>
           <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-medium transition-colors"
+            onClick={() => { setEditingRoute(null); setForm(emptyForm); setShowModal(true) }}
+            className="btn-primary flex items-center gap-2 px-4 py-2"
           >
             <Plus className="w-4 h-4" />
-            Nueva Ruta
+            Nueva ruta
           </button>
         </div>
       </div>
 
       {/* Filter tabs */}
-      {routes.length > 0 && (
-        <div className="flex items-center gap-1 mb-6 bg-slate-900 border border-slate-800 rounded-lg p-1 w-fit">
-          {[
-            { key: 'all', label: 'Todas', count: counts.all },
-            { key: 'high', label: 'Alto', count: counts.high, color: 'text-red-400' },
-            { key: 'medium', label: 'Medio', count: counts.medium, color: 'text-amber-400' },
-            { key: 'low', label: 'Bajo', count: counts.low, color: 'text-emerald-400' },
-            { key: 'unanalyzed', label: 'Pendientes', count: counts.unanalyzed, color: 'text-slate-500' },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setFilterLevel(tab.key)}
-              className={clsx(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5',
-                filterLevel === tab.key
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-300'
-              )}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className={clsx('text-xs font-semibold', filterLevel === tab.key ? (tab.color || 'text-white') : (tab.color || 'text-slate-500'))}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {routes.length === 0 ? (
-        <div className="card p-16 text-center">
-          <div className="w-16 h-16 bg-brand-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Globe className="w-8 h-8 text-brand-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Sin rutas registradas</h3>
-          <p className="text-slate-400 mb-6 max-w-sm mx-auto text-sm leading-relaxed">
-            Agrega tu primera ruta de importacion para comenzar a monitorear el riesgo geopolitico con inteligencia artificial.
-          </p>
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[
+          { key: 'all', label: 'Todas', count: counts.all },
+          { key: 'critical', label: 'Alto Riesgo', count: counts.critical },
+          { key: 'medium', label: 'Riesgo Medio', count: counts.medium },
+          { key: 'low', label: 'Bajo Riesgo', count: counts.low },
+          { key: 'unanalyzed', label: 'Sin Analizar', count: counts.unanalyzed },
+        ].map(({ key, label, count }) => (
           <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-medium transition-colors"
+            key={key}
+            onClick={() => setFilterLevel(key)}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+              filterLevel === key
+                ? 'bg-brand-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-slate-300 border border-slate-700'
+            )}
           >
-            <Plus className="w-4 h-4" />
-            Crear primera ruta
+            {label}
+            <span className={clsx(
+              'text-xs px-1.5 py-0.5 rounded-full',
+              filterLevel === key ? 'bg-brand-700 text-brand-100' : 'bg-slate-700 text-slate-500'
+            )}>{count}</span>
           </button>
+        ))}
+      </div>
+
+      {/* Loading state */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
         </div>
-      ) : filteredRoutes.length === 0 ? (
-        <div className="card p-12 text-center">
-          <p className="text-slate-400">No hay rutas con este nivel de riesgo.</p>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20">
+          <Globe className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">
+            {routes.length === 0 ? 'Sin rutas configuradas' : 'Sin rutas en este filtro'}
+          </h3>
+          <p className="text-slate-500 text-sm mb-6">
+            {routes.length === 0
+              ? 'Agrega tu primera ruta de importación para comenzar el monitoreo geopolítico.'
+              : 'Cambia el filtro para ver otras rutas.'}
+          </p>
+          {routes.length === 0 && (
+            <button
+              onClick={() => { setEditingRoute(null); setForm(emptyForm); setShowModal(true) }}
+              className="btn-primary flex items-center gap-2 mx-auto px-5 py-2.5"
+            >
+              <Plus className="w-4 h-4" />
+              Agregar primera ruta
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredRoutes.map(route => {
-            const analysis = getLatestAnalysis(route)
-            const score = analysis?.risk_score ?? null
-            const isAnalyzing = analyzingId === route.id
+          {filtered.map(route => {
+            const score = getLatestScore(route)
+            const latest = getLatestAnalysis(route)
             const isExpanded = expandedId === route.id
+            const isAnalyzing = analyzingId === route.id
 
             return (
-              <div key={route.id} className={'card transition-all ' + (isExpanded ? 'border-slate-600' : '')}>
-                {/* Card main row */}
-                <div className="p-5">
-                  <div className="flex items-start gap-4">
-                    {/* Risk indicator */}
-                    <div className={'w-1 self-stretch rounded-full flex-shrink-0 ' + (score === null ? 'bg-slate-700' : score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-amber-500' : 'bg-emerald-500')} />
+              <div key={route.id} className={clsx('card border transition-all', riskBg(score))}>
+                {/* Route header */}
+                <div className="p-4 flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {/* Risk score badge */}
+                    <div className={clsx(
+                      'w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0 border',
+                      score === null ? 'bg-slate-800 border-slate-700' :
+                      score >= 70 ? 'bg-red-900/50 border-red-700/50' :
+                      score >= 40 ? 'bg-amber-900/50 border-amber-700/50' :
+                      'bg-emerald-900/50 border-emerald-700/50'
+                    )}>
+                      {score !== null ? (
+                        <>
+                          <span className={`text-xl font-bold leading-none ${riskColor(score)}`}>{score}</span>
+                          <span className="text-xs text-slate-500 mt-0.5">/100</span>
+                        </>
+                      ) : (
+                        <Clock className="w-6 h-6 text-slate-600" />
+                      )}
+                    </div>
 
-                    {/* Main info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-white font-semibold">
-                              {route.origin_country} <span className="text-slate-500 font-normal">→</span> {route.destination_country}
-                            </h3>
-                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{route.cargo_type}</span>
-                          </div>
-                          {route.description && (
-                            <p className="text-slate-500 text-xs leading-relaxed">{route.description}</p>
-                          )}
-                          {analysis && (
-                            <p className="text-slate-400 text-xs mt-1.5 leading-relaxed max-w-xl">{analysis.summary}</p>
-                          )}
-                        </div>
-
-                        {/* Score */}
-                        <div className="text-right flex-shrink-0">
-                          {score !== null ? (
-                            <div className={'inline-flex flex-col items-center px-3 py-2 rounded-lg border ' + riskBgLight(score)}>
-                              <span className={'text-2xl font-bold ' + riskColor(score)}>{score}</span>
-                              <span className={'text-xs font-semibold ' + riskColor(score)}>{riskLabel(score)}</span>
-                            </div>
-                          ) : (
-                            <div className="inline-flex flex-col items-center px-3 py-2 rounded-lg border border-slate-700 bg-slate-800">
-                              <span className="text-slate-500 text-xs">Sin</span>
-                              <span className="text-slate-500 text-xs">analizar</span>
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-white text-sm">{route.name}</h3>
+                        {score !== null && (
+                          <span className={clsx(
+                            'text-xs px-2 py-0.5 rounded-full border font-medium',
+                            score >= 70 ? 'bg-red-900/40 border-red-700/50 text-red-300' :
+                            score >= 40 ? 'bg-amber-900/40 border-amber-700/50 text-amber-300' :
+                            'bg-emerald-900/40 border-emerald-700/50 text-emerald-300'
+                          )}>{riskLabel(score)}</span>
+                        )}
+                        {route.risk_analyses?.length > 1 && (
+                          <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
+                            {route.risk_analyses.length} análisis
+                          </span>
+                        )}
                       </div>
 
-                      {/* Trade data row */}
-                      {analysis?.trade_data && (
-                        <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {analysis.trade_data.typical_transit_days} dias
+                      <div className="flex items-center gap-2 mt-1.5 text-sm text-slate-400">
+                        <span className="font-medium text-white">{route.origin_country}</span>
+                        <ArrowRight className="w-3 h-3 text-slate-600" />
+                        <span className="font-medium text-white">{route.destination_country}</span>
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Package className="w-3 h-3" />{route.cargo_type}
+                        </span>
+                        {route.incoterm && (
+                          <span className="text-xs font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
+                            {route.incoterm}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <FileText className="w-3 h-3" />
-                            {analysis.trade_data.incoterms_recommended}
+                        )}
+                        {route.transport_mode && (
+                          <span className="text-xs text-slate-500 capitalize">
+                            {route.transport_mode === 'maritimo' ? '🚢' :
+                             route.transport_mode === 'aereo' ? '✈️' :
+                             route.transport_mode === 'terrestre' ? '🚛' : '🔄'} {route.transport_mode}
                           </span>
-                          {analysis.trade_data.key_ports?.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Anchor className="w-3 h-3" />
-                              {analysis.trade_data.key_ports.slice(0, 2).join(', ')}
-                            </span>
-                          )}
-                          <span className={'flex items-center gap-1 ' + (analysis.trade_data.currency_risk === 'high' ? 'text-red-400' : analysis.trade_data.currency_risk === 'medium' ? 'text-amber-400' : 'text-emerald-400')}>
-                            Riesgo cambiario: {analysis.trade_data.currency_risk === 'high' ? 'Alto' : analysis.trade_data.currency_risk === 'medium' ? 'Medio' : 'Bajo'}
+                        )}
+                        {latest && (
+                          <span className="text-xs text-slate-600">
+                            Último análisis: {new Date(latest.created_at).toLocaleDateString('es')}
                           </span>
+                        )}
+                      </div>
+
+                      {/* Mini progress bar */}
+                      {score !== null && (
+                        <div className="mt-2 w-full max-w-xs bg-slate-800 rounded-full h-1.5">
+                          <div
+                            className={`h-1.5 rounded-full transition-all ${riskBarColor(score)}`}
+                            style={{ width: `${score}%` }}
+                          />
                         </div>
                       )}
-
-                      {/* Action row */}
-                      <div className="flex items-center gap-2 mt-4">
-                        <button
-                          onClick={() => handleAnalyze(route)}
-                          disabled={isAnalyzing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-colors"
-                        >
-                          {isAnalyzing ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Analizando...</span></>
-                          ) : (
-                            <><Zap className="w-3.5 h-3.5" /><span>{score !== null ? 'Re-analizar' : 'Analizar'}</span></>
-                          )}
-                        </button>
-
-                        {analysis && (
-                          <button
-                            onClick={() => setExpandedId(isExpanded ? null : route.id)}
-                            className={'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ' + (isExpanded ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700')}
-                          >
-                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            {isExpanded ? 'Ocultar analisis' : 'Ver analisis completo'}
-                          </button>
-                        )}
-
-                        <div className="ml-auto flex items-center gap-1">
-                          <button
-                            onClick={() => openEdit(route)}
-                            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Editar ruta"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(route.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Eliminar ruta"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => handleAnalyze(route)}
+                      disabled={isAnalyzing}
+                      className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                      title="Analizar riesgo con IA"
+                    >
+                      {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                      {isAnalyzing ? 'Analizando...' : 'Analizar'}
+                    </button>
+                    <button
+                      onClick={() => openEdit(route)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                      title="Editar ruta"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(route.id)}
+                      className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                      title="Eliminar ruta"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setExpandedId(isExpanded ? null : route.id)
+                        setActiveTab('analysis')
+                      }}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-
-                {/* Expanded analysis */}
-                {isExpanded && analysis && (
-                  <div className="border-t border-slate-800 p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-white font-semibold text-sm flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-brand-400" />
-                        Analisis Completo de Riesgo
-                      </h4>
-                      <span className="text-slate-500 text-xs flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(analysis.created_at).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                {/* Expanded analysis panel */}
+                {isExpanded && (
+                  <div className="border-t border-slate-700/50">
+                    {/* Tabs */}
+                    <div className="flex border-b border-slate-700/50">
+                      {[
+                        { key: 'analysis', label: 'Análisis', icon: Shield },
+                        { key: 'history', label: 'Histórico', icon: Activity },
+                        { key: 'tradedata', label: 'Datos Comerciales', icon: BarChart3 },
+                      ].map(({ key, label, icon: Icon }) => (
+                        <button
+                          key={key}
+                          onClick={() => setActiveTab(key)}
+                          className={clsx(
+                            'flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors',
+                            activeTab === key
+                              ? 'border-brand-500 text-white'
+                              : 'border-transparent text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          {label}
+                        </button>
+                      ))}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Factors */}
-                      {analysis.factors?.length > 0 && (
-                        <div>
-                          <h5 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3 h-3" />
-                            Factores de Riesgo
-                          </h5>
-                          <div className="space-y-2">
-                            {analysis.factors.map((factor, i) => (
-                              <div key={i} className="flex items-start gap-2 p-2.5 bg-slate-800 rounded-lg">
-                                {severityIcon(factor.severity)}
-                                <div className="min-w-0">
-                                  <span className="text-xs font-semibold text-slate-300">{factor.category}: </span>
-                                  <span className="text-xs text-slate-400">{factor.description}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Recommendations */}
-                      {analysis.recommendations?.length > 0 && (
-                        <div>
-                          <h5 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <Shield className="w-3 h-3" />
-                            Recomendaciones
-                          </h5>
-                          <div className="space-y-2">
-                            {analysis.recommendations.map((rec, i) => {
-                              const p = priorityLabel(rec.priority)
-                              return (
-                                <div key={i} className="flex items-start gap-2 p-2.5 bg-slate-800 rounded-lg">
-                                  <CheckCircle className="w-3.5 h-3.5 text-brand-400 flex-shrink-0 mt-0.5" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs text-slate-300 leading-relaxed">{rec.action}</p>
-                                    <span className={'text-xs font-medium px-1.5 py-0.5 rounded mt-1 inline-block ' + p.cls}>{p.text}</span>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Trade data expanded */}
-                    {analysis.trade_data && (
-                      <div className="pt-3 border-t border-slate-800">
-                        <h5 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <Package className="w-3 h-3" />
-                          Datos Operativos de la Ruta
-                        </h5>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <div className="bg-slate-800 rounded-lg p-3">
-                            <p className="text-slate-500 text-xs">Tiempo de transito</p>
-                            <p className="text-white font-semibold text-sm mt-1">{analysis.trade_data.typical_transit_days} dias</p>
-                          </div>
-                          <div className="bg-slate-800 rounded-lg p-3">
-                            <p className="text-slate-500 text-xs">Incoterm recomendado</p>
-                            <p className="text-white font-semibold text-sm mt-1">{analysis.trade_data.incoterms_recommended}</p>
-                          </div>
-                          <div className="bg-slate-800 rounded-lg p-3">
-                            <p className="text-slate-500 text-xs">Riesgo cambiario</p>
-                            <p className={'font-semibold text-sm mt-1 ' + (analysis.trade_data.currency_risk === 'high' ? 'text-red-400' : analysis.trade_data.currency_risk === 'medium' ? 'text-amber-400' : 'text-emerald-400')}>
-                              {analysis.trade_data.currency_risk === 'high' ? 'Alto' : analysis.trade_data.currency_risk === 'medium' ? 'Medio' : 'Bajo'}
+                    <div className="p-5">
+                      {/* ANALYSIS TAB */}
+                      {activeTab === 'analysis' && latest && (
+                        <div className="space-y-5">
+                          {/* Summary */}
+                          <div>
+                            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Resumen Ejecutivo</h4>
+                            <p className="text-sm text-slate-300 leading-relaxed bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                              {latest.summary}
                             </p>
                           </div>
-                          <div className="bg-slate-800 rounded-lg p-3">
-                            <p className="text-slate-500 text-xs">Puertos clave</p>
-                            <p className="text-white font-semibold text-sm mt-1">{analysis.trade_data.key_ports?.slice(0, 2).join(', ') || '—'}</p>
+
+                          {/* Risk Factors */}
+                          {latest.factors && latest.factors.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Factores de Riesgo</h4>
+                              <div className="space-y-2">
+                                {latest.factors.map((f, i) => (
+                                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                                    <div className={clsx(
+                                      'text-xs font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 mt-0.5',
+                                      f.severity === 'high' || f.severity === 'critical' ? 'text-red-400 border-red-800 bg-red-950/30' :
+                                      f.severity === 'medium' ? 'text-amber-400 border-amber-800 bg-amber-950/30' :
+                                      'text-emerald-400 border-emerald-800 bg-emerald-950/30'
+                                    )}>
+                                      {(f.severity || 'bajo').toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-white">{f.name || f.factor}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">{f.description || f.impact}</p>
+                                    </div>
+                                    {f.score !== undefined && (
+                                      <span className={`text-sm font-bold ${riskColor(f.score)}`}>{f.score}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Recommendations */}
+                          {latest.recommendations && latest.recommendations.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Recomendaciones Operativas</h4>
+                              <div className="space-y-2">
+                                {latest.recommendations.map((rec, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-sm text-slate-300 p-2.5 rounded-lg bg-slate-800/30 border border-slate-700/30">
+                                    <span className="w-5 h-5 bg-brand-600/20 text-brand-400 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                                      {i + 1}
+                                    </span>
+                                    <span className="leading-relaxed">{typeof rec === 'string' ? rec : rec.action || rec.text || JSON.stringify(rec)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-slate-600 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Análisis generado: {new Date(latest.created_at).toLocaleString('es')} • Powered by Claude AI
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                      {activeTab === 'analysis' && !latest && (
+                        <div className="text-center py-10">
+                          <Zap className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                          <p className="text-slate-400 text-sm mb-4">Esta ruta aún no tiene análisis de riesgo.</p>
+                          <button
+                            onClick={() => handleAnalyze(route)}
+                            disabled={isAnalyzing}
+                            className="btn-primary flex items-center gap-2 mx-auto px-4 py-2"
+                          >
+                            {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                            Generar primer análisis
+                          </button>
+                        </div>
+                      )}
+
+                      {/* HISTORY TAB */}
+                      {activeTab === 'history' && (
+                        <div className="space-y-5">
+                          {route.risk_analyses && route.risk_analyses.length > 0 ? (
+                            <>
+                              <RiskSparkline analyses={route.risk_analyses} />
+
+                              <div>
+                                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Historial de Análisis</h4>
+                                <div className="space-y-2">
+                                  {route.risk_analyses.map((a, i) => (
+                                    <div key={a.id || i} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                                      <div className={clsx(
+                                        'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 border',
+                                        a.risk_score >= 70 ? 'bg-red-900/40 border-red-700/40 text-red-400' :
+                                        a.risk_score >= 40 ? 'bg-amber-900/40 border-amber-700/40 text-amber-400' :
+                                        'bg-emerald-900/40 border-emerald-700/40 text-emerald-400'
+                                      )}>
+                                        <span className="text-sm font-bold">{a.risk_score}</span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className={`text-xs font-medium ${riskColor(a.risk_score)}`}>
+                                            {riskLabel(a.risk_score)}
+                                          </span>
+                                          {i === 0 && (
+                                            <span className="text-xs bg-brand-600/20 text-brand-400 px-1.5 py-0.5 rounded-full border border-brand-700/30">
+                                              Más reciente
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{a.summary}</p>
+                                      </div>
+                                      <span className="text-xs text-slate-600 flex-shrink-0">
+                                        {new Date(a.created_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: '2-digit' })}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-center py-10">
+                              <Activity className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                              <p className="text-slate-400 text-sm">No hay historial de análisis aún.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* TRADE DATA TAB */}
+                      {activeTab === 'tradedata' && latest?.trade_data && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {Object.entries(latest.trade_data).map(([key, value]) => (
+                            <div key={key} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                              <p className="text-xs text-slate-500 capitalize mb-1">
+                                {key.replace(/_/g, ' ')}
+                              </p>
+                              <p className="text-sm font-medium text-white">{String(value)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {activeTab === 'tradedata' && !latest?.trade_data && (
+                        <div className="text-center py-10">
+                          <BarChart3 className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                          <p className="text-slate-400 text-sm">Genera un análisis para ver datos comerciales.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -556,109 +691,127 @@ export default function RoutesPage() {
         </div>
       )}
 
-      {/* Modal create/edit */}
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-slate-800">
-              <div>
-                <h2 className="text-lg font-semibold text-white">
-                  {editingRoute ? 'Editar Ruta' : 'Nueva Ruta de Importacion'}
-                </h2>
-                <p className="text-slate-400 text-xs mt-0.5">
-                  {editingRoute ? 'Modifica los datos de la ruta' : 'Registra una nueva ruta para monitorear'}
-                </p>
-              </div>
-              <button onClick={closeModal} className="text-slate-400 hover:text-white transition-colors p-1">
+          <div className="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-700">
+              <h2 className="text-base font-semibold text-white">
+                {editingRoute ? 'Editar ruta' : 'Nueva ruta comercial'}
+              </h2>
+              <button
+                onClick={() => { setShowModal(false); setEditingRoute(null); setForm(emptyForm) }}
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                  <MapPin className="w-3.5 h-3.5 inline mr-1 text-slate-500" />
-                  Pais de Origen <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={form.origin_country}
-                  onChange={e => setForm(f => ({ ...f, origin_country: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Seleccionar pais de origen...</option>
-                  {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
 
+            <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                  <MapPin className="w-3.5 h-3.5 inline mr-1 text-slate-500" />
-                  Pais de Destino <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={form.destination_country}
-                  onChange={e => setForm(f => ({ ...f, destination_country: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Seleccionar pais de destino...</option>
-                  {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                  <Package className="w-3.5 h-3.5 inline mr-1 text-slate-500" />
-                  Tipo de Carga <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={form.cargo_type}
-                  onChange={e => setForm(f => ({ ...f, cargo_type: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Seleccionar tipo de carga...</option>
-                  {CARGO_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                  Descripcion <span className="text-slate-600 font-normal">(opcional)</span>
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
-                  rows={3}
-                  placeholder="Ej: Importacion mensual de componentes electronicos para ensamblaje..."
+                <label className="label">Nombre de la ruta *</label>
+                <input
+                  className="input"
+                  placeholder="Ej. China-México Electrónicos Q1"
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium text-sm transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors"
-                >
-                  {saving ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /><span>Guardando...</span></>
-                  ) : (
-                    editingRoute ? 'Actualizar Ruta' : 'Crear Ruta'
-                  )}
-                </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">País de origen *</label>
+                  <select className="input" value={form.origin_country} onChange={e => setForm(p => ({ ...p, origin_country: e.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    {COUNTRIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">País de destino *</label>
+                  <select className="input" value={form.destination_country} onChange={e => setForm(p => ({ ...p, destination_country: e.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    {COUNTRIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Puerto / Ciudad origen</label>
+                  <input
+                    className="input"
+                    placeholder="Ej. Shanghái, Shenzhen"
+                    value={form.port_of_origin}
+                    onChange={e => setForm(p => ({ ...p, port_of_origin: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="label">Puerto / Ciudad destino</label>
+                  <input
+                    className="input"
+                    placeholder="Ej. Manzanillo, Veracruz"
+                    value={form.port_of_destination}
+                    onChange={e => setForm(p => ({ ...p, port_of_destination: e.target.value }))}
+                  />
+                </div>
               </div>
-            </form>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Tipo de mercancía *</label>
+                  <select className="input" value={form.cargo_type} onChange={e => setForm(p => ({ ...p, cargo_type: e.target.value }))}>
+                    <option value="">Seleccionar tipo</option>
+                    {CARGO_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Incoterm</label>
+                  <select className="input" value={form.incoterm} onChange={e => setForm(p => ({ ...p, incoterm: e.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    {INCOTERMS.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Modo de transporte</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {TRANSPORT_MODES.map(({ value, label, icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, transport_mode: p.transport_mode === value ? '' : value }))}
+                      className={clsx(
+                        'flex flex-col items-center gap-1 p-2.5 rounded-lg border text-xs transition-all',
+                        form.transport_mode === value
+                          ? 'border-brand-500 bg-brand-600/10 text-white'
+                          : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                      )}
+                    >
+                      <span className="text-lg">{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-5 border-t border-slate-700">
+              <button
+                onClick={() => { setShowModal(false); setEditingRoute(null); setForm(emptyForm) }}
+                className="btn-ghost px-4 py-2"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-primary flex items-center gap-2 px-5 py-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {editingRoute ? 'Guardar cambios' : 'Crear ruta'}
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
-  }
+    }
