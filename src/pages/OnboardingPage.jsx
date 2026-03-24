@@ -60,10 +60,41 @@ const CARGO_TYPES = [
 ]
 
 const COUNTRIES = [
-  'China', 'Estados Unidos', 'Alemania', 'México', 'Brasil', 'India',
-  'Japón', 'Corea del Sur', 'Vietnam', 'Taiwán', 'Italia', 'Francia',
-  'Canadá', 'Reino Unido', 'España', 'Turquía', 'Indonesia', 'Tailandia',
-  'Polonia', 'Países Bajos', 'Bélgica', 'Argentina', 'Chile', 'Colombia',
+  // América del Norte y Central
+  'México', 'Estados Unidos', 'Canadá', 'Guatemala', 'Honduras', 'El Salvador',
+  'Nicaragua', 'Costa Rica', 'Panamá', 'Cuba', 'República Dominicana', 'Haití',
+  'Jamaica', 'Trinidad y Tobago', 'Puerto Rico',
+  // América del Sur
+  'Venezuela', 'Colombia', 'Ecuador', 'Perú', 'Bolivia', 'Brasil', 'Argentina',
+  'Chile', 'Uruguay', 'Paraguay', 'Guyana', 'Surinam',
+  // Europa Occidental
+  'Alemania', 'Francia', 'España', 'Italia', 'Portugal', 'Países Bajos', 'Bélgica',
+  'Suiza', 'Austria', 'Suecia', 'Noruega', 'Dinamarca', 'Finlandia', 'Irlanda',
+  'Reino Unido', 'Grecia',
+  // Europa del Este
+  'Polonia', 'República Checa', 'Hungría', 'Rumania', 'Bulgaria', 'Ucrania',
+  'Serbia', 'Croacia', 'Eslovaquia', 'Eslovenia',
+  // Asia Oriental
+  'China', 'Japón', 'Corea del Sur', 'Taiwán', 'Hong Kong', 'Mongolia',
+  // Asia Sudoriental
+  'Vietnam', 'Tailandia', 'Indonesia', 'Malasia', 'Filipinas', 'Singapur',
+  'Myanmar', 'Camboya', 'Laos',
+  // Asia del Sur
+  'India', 'Pakistán', 'Bangladesh', 'Sri Lanka', 'Nepal',
+  // Asia Central y Cáucaso
+  'Kazajistán', 'Uzbekistán', 'Azerbaiyán', 'Georgia',
+  // Medio Oriente
+  'Emiratos Árabes Unidos', 'Arabia Saudita', 'Qatar', 'Kuwait', 'Omán',
+  'Turquía', 'Israel', 'Jordania', 'Irak', 'Irán', 'Líbano',
+  // África del Norte
+  'Egipto', 'Marruecos', 'Argelia', 'Túnez', 'Libia',
+  // África Subsahariana
+  'Nigeria', 'Sudáfrica', 'Ghana', 'Kenia', 'Etiopía', 'Tanzania',
+  'Costa de Marfil', 'Senegal', 'Angola', 'Mozambique', 'Camerún',
+  // Oceanía
+  'Australia', 'Nueva Zelanda',
+  // Rusia y ex-URSS
+  'Rusia', 'Bielorrusia',
 ]
 
 const STEPS = [
