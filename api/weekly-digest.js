@@ -1,3 +1,4 @@
+// GeoPulse Weekly Digest — Cron Job (runs every Monday 14:00 UTC)
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
