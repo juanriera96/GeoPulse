@@ -380,7 +380,7 @@ export default async function handler(req, res) {
           const htmlBody = buildEmailHTML(userName, routeResults)
 
           const { error: emailError } = await resend.emails.send({
-            from: 'GeoPulse <alertas@geopulse.app>',
+            from: 'GeoPulse <onboarding@resend.dev>',
             to: [profile.email],
             subject,
             html: htmlBody,
