@@ -10,6 +10,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+export const config = {
+  maxDuration: 60,
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -67,8 +71,8 @@ Responde UNICAMENTE con un JSON valido con esta estructura exacta, sin texto adi
 }`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 2048,
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     })
 
