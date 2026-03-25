@@ -29,7 +29,7 @@ export function AlertsPage() {
     const { data } = await supabase
       .from('routes')
       .select(`
-        id, origin_country, destination_country, cargo_type, description,
+        id, origin_country, destination_country, cargo_type, name,
         risk_analyses(risk_score, risk_level, summary, factors, recommendations, created_at)
       `)
       .eq('user_id', user.id)
