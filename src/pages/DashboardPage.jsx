@@ -4,9 +4,9 @@ import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import {
-  Shield, Globe, Bell, TrendingUp, AlertTriangle, Clock,
-  ArrowRight, Zap, CheckCircle, XCircle, Activity,
-  Package, MapPin, ChevronRight, BarChart3, RefreshCw
+  Shield, Globe, Bell, TrendingUp, AlertTriangle, Clock, ArrowRight,
+  Zap, CheckCircle, XCircle, Activity, Package, MapPin, ChevronRight,
+  BarChart3, RefreshCw, TrendingDown, Minus
 } from 'lucide-react'
 
 function ScoreBadge({ score }) {
@@ -28,7 +28,27 @@ function ScoreBadge({ score }) {
   )
 }
 
-function StatCard({ icon: Icon, label, value, sub, color, onClick }) {
+function DeltaBadge({ delta }) {
+  if (delta === null || delta === undefined) return null
+  const abs = Math.abs(delta)
+  if (abs < 1) return (
+    <span className="inline-flex items-center gap-0.5 text-xs text-slate-500 font-medium">
+      <Minus className="w-3 h-3" /> Sin cambio
+    </span>
+  )
+  if (delta > 0) return (
+    <span className="inline-flex items-center gap-0.5 text-xs text-red-400 font-semibold">
+      <TrendingUp className="w-3 h-3" /> +{delta} pts
+    </span>
+  )
+  return (
+    <span className="inline-flex items-center gap-0.5 text-xs text-emerald-400 font-semibold">
+      <TrendingDown className="w-3 h-3" /> {delta} pts
+    </span>
+  )
+}
+
+function StatCard({ icon: Icon, label, value, sub, color, onClick, delta }) {
   return (
     <div
       onClick={onClick}
@@ -38,6 +58,11 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }) {
         <div>
           <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">{label}</p>
           <p className={'text-3xl font-bold ' + (color || 'text-white')}>{value}</p>
+          {delta !== undefined && delta !== null && (
+            <div className="mt-1">
+              <DeltaBadge delta={delta} />
+            </div>
+          )}
           {sub && <p className="text-slate-500 text-xs mt-1">{sub}</p>}
         </div>
         <div className={'w-10 h-10 rounded-lg flex items-center justify-center ' + (color ? color.replace('text-', 'bg-').replace('400', '500/10').replace('300', '500/10') : 'bg-brand-500/10')}>
@@ -79,10 +104,24 @@ export default function DashboardPage() {
     setLoading(true)
     const { data } = await supabase
       .from('routes')
-      .select('*, risk_analyses(risk_score, risk_level, summary, created_at)')
+      .select(`
+        *,
+        risk_analyses(
+          risk_score, risk_level, summary, created_at
+        )
+      `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    setRoutes(data || [])
+
+    // Sort analyses desc for each route so [0]=latest, [1]=previous
+    const processed = (data || []).map(r => ({
+      ...r,
+      risk_analyses: (r.risk_analyses || []).sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      )
+    }))
+
+    setRoutes(processed)
     setLastRefresh(new Date())
     setLoading(false)
   }
@@ -90,6 +129,18 @@ export default function DashboardPage() {
   const getLatestScore = (route) => {
     if (!route.risk_analyses?.length) return null
     return route.risk_analyses[0]?.risk_score ?? null
+  }
+
+  const getPrevScore = (route) => {
+    if (!route.risk_analyses || route.risk_analyses.length < 2) return null
+    return route.risk_analyses[1]?.risk_score ?? null
+  }
+
+  const getDelta = (route) => {
+    const latest = getLatestScore(route)
+    const prev = getPrevScore(route)
+    if (latest === null || prev === null) return null
+    return latest - prev
   }
 
   const analyzedRoutes = routes.filter(r => r.risk_analyses?.length > 0)
@@ -105,6 +156,12 @@ export default function DashboardPage() {
 
   const avgScore = analyzedRoutes.length > 0
     ? Math.round(analyzedRoutes.reduce((acc, r) => acc + (getLatestScore(r) || 0), 0) / analyzedRoutes.length)
+    : null
+
+  // Avg score delta: compare current avg vs previous avg
+  const routesWithDelta = analyzedRoutes.filter(r => getPrevScore(r) !== null)
+  const avgDelta = routesWithDelta.length > 0
+    ? Math.round(routesWithDelta.reduce((acc, r) => acc + getDelta(r), 0) / routesWithDelta.length)
     : null
 
   const recentAnalyses = routes
@@ -132,7 +189,6 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -190,7 +246,10 @@ export default function DashboardPage() {
           icon={BarChart3}
           label="Score Promedio"
           value={avgScore !== null ? avgScore : '—'}
-          sub={avgScore !== null ? (globalRiskLevel === 'high' ? 'Riesgo alto global' : globalRiskLevel === 'medium' ? 'Riesgo moderado' : 'Riesgo controlado') : 'Sin analisis aun'}
+          delta={avgDelta}
+          sub={avgScore !== null
+            ? (globalRiskLevel === 'high' ? 'Riesgo alto global' : globalRiskLevel === 'medium' ? 'Riesgo moderado' : 'Riesgo controlado')
+            : 'Sin analisis aun'}
           color={avgScore === null ? 'text-slate-400' : avgScore >= 70 ? 'text-red-400' : avgScore >= 40 ? 'text-amber-400' : 'text-emerald-400'}
         />
         <StatCard
@@ -205,16 +264,16 @@ export default function DashboardPage() {
           icon={Shield}
           label="Rutas Monitoreadas"
           value={analyzedRoutes.length + '/' + routes.length}
-          sub={analyzedRoutes.length > 0 ? 'Ultimo: ' + (recentAnalyses[0] ? formatTimeAgo(recentAnalyses[0].risk_analyses[0].created_at) : '—') : 'Inicia tu primer analisis'}
+          sub={analyzedRoutes.length > 0
+            ? 'Ultimo: ' + (recentAnalyses[0] ? formatTimeAgo(recentAnalyses[0].risk_analyses[0].created_at) : '—')
+            : 'Inicia tu primer analisis'}
           color="text-brand-400"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {/* Risk Overview */}
         <div className="lg:col-span-2 space-y-4">
-
           {/* Risk Distribution */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
@@ -226,7 +285,6 @@ export default function DashboardPage() {
                 Ver todas <ArrowRight className="w-3 h-3" />
               </button>
             </div>
-
             {loading ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => (
@@ -248,8 +306,12 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {routes.slice(0, 6).map(route => {
                   const score = getLatestScore(route)
+                  const delta = getDelta(route)
                   return (
-                    <div key={route.id} className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors group">
+                    <div
+                      key={route.id}
+                      className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors group"
+                    >
                       <div className="w-8 h-8 bg-brand-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Globe className="w-4 h-4 text-brand-400" />
                       </div>
@@ -258,11 +320,14 @@ export default function DashboardPage() {
                           <p className="text-white text-sm font-medium truncate">
                             {route.origin_country} <span className="text-slate-500">→</span> {route.destination_country}
                           </p>
-                          <ScoreBadge score={score} />
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            {delta !== null && <DeltaBadge delta={delta} />}
+                            <ScoreBadge score={score} />
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <RiskBar score={score} />
-                          <span className="text-slate-500 text-xs w-12 text-right flex-shrink-0">{route.cargo_type}</span>
+                          <span className="text-slate-500 text-xs w-12 text-right flex-shrink-0">{route.cargo_type?.split(' ')[0]}</span>
                         </div>
                       </div>
                     </div>
@@ -289,7 +354,6 @@ export default function DashboardPage() {
                 Actualizado: {lastRefresh.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-
             {recentAnalyses.length === 0 ? (
               <div className="text-center py-6">
                 <Activity className="w-8 h-8 text-slate-700 mx-auto mb-2" />
@@ -301,6 +365,7 @@ export default function DashboardPage() {
                 {recentAnalyses.map(route => {
                   const analysis = route.risk_analyses[0]
                   const score = analysis.risk_score
+                  const delta = getDelta(route)
                   return (
                     <div
                       key={route.id}
@@ -316,9 +381,14 @@ export default function DashboardPage() {
                           <p className="text-slate-500 text-xs mt-0.5 line-clamp-1">{analysis.summary}</p>
                         )}
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right flex-shrink-0 space-y-1">
                         <ScoreBadge score={score} />
-                        <p className="text-slate-600 text-xs mt-1">{formatTimeAgo(analysis.created_at)}</p>
+                        {delta !== null && (
+                          <div className="flex justify-end">
+                            <DeltaBadge delta={delta} />
+                          </div>
+                        )}
+                        <p className="text-slate-600 text-xs">{formatTimeAgo(analysis.created_at)}</p>
                       </div>
                     </div>
                   )
@@ -330,7 +400,6 @@ export default function DashboardPage() {
 
         {/* Right sidebar */}
         <div className="space-y-4">
-
           {/* Risk Summary */}
           <div className="card p-5">
             <h2 className="text-white font-semibold mb-4">Resumen de Riesgo</h2>
@@ -368,6 +437,44 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Portfolio delta summary */}
+          {routesWithDelta.length > 0 && (
+            <div className="card p-5">
+              <h2 className="text-white font-semibold mb-3">Variacion Semanal</h2>
+              <div className="space-y-2">
+                {routesWithDelta.map(route => {
+                  const delta = getDelta(route)
+                  const score = getLatestScore(route)
+                  return (
+                    <div key={route.id} className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-300 text-xs truncate">
+                          {route.origin_country} → {route.destination_country}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="w-16 bg-slate-800 rounded-full h-1">
+                            <div
+                              className={'h-1 rounded-full ' + (score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-amber-500' : 'bg-emerald-500')}
+                              style={{ width: score + '%' }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-500">{score}</span>
+                        </div>
+                      </div>
+                      <DeltaBadge delta={delta} />
+                    </div>
+                  )
+                })}
+              </div>
+              {avgDelta !== null && (
+                <div className="mt-3 pt-3 border-t border-slate-700 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Promedio portfolio</span>
+                  <DeltaBadge delta={avgDelta} />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quick actions */}
           <div className="card p-5">
             <h2 className="text-white font-semibold mb-3">Acciones Rapidas</h2>
@@ -385,7 +492,6 @@ export default function DashboardPage() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-600 ml-auto group-hover:text-slate-400" />
               </button>
-
               {unanalyzedRoutes.length > 0 && (
                 <button
                   onClick={() => navigate('/routes')}
@@ -401,7 +507,6 @@ export default function DashboardPage() {
                   <ChevronRight className="w-4 h-4 text-slate-600 ml-auto group-hover:text-slate-400" />
                 </button>
               )}
-
               <button
                 onClick={() => navigate('/reports')}
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg hover:bg-slate-800 transition-colors group"
@@ -425,14 +530,14 @@ export default function DashboardPage() {
               <div>
                 <p className="text-brand-400 text-xs font-semibold uppercase tracking-wider mb-1">Consejo Profesional</p>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Analiza tus rutas semanalmente. Los riesgos geopoliticos pueden cambiar rapidamente y un score alto no detectado puede generar retrasos de hasta 30 dias en aduana.
+                  Analiza tus rutas semanalmente. Los riesgos geopoliticos pueden cambiar rapidamente
+                  y un score alto no detectado puede generar retrasos de hasta 30 dias en aduana.
                 </p>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
   )
-                   }
+}
