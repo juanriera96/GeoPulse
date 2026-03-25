@@ -77,10 +77,14 @@ Responde UNICAMENTE con un JSON valido con esta estructura exacta, sin texto adi
     })
 
     const text = response.content[0].text
-    const jsonMatch = text.match(/{[sS]*}/)
-    if (!jsonMatch) throw new Error('No valid JSON in response')
-
-    const analysisData = JSON.parse(jsonMatch[0])
+    // Strip markdown code blocks if Claude wraps JSON in ```json ... ```
+    let cleanText = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+    // Find first { and last } to extract JSON object
+    const firstBrace = cleanText.indexOf('{')
+    const lastBrace = cleanText.lastIndexOf('}')
+    if (firstBrace === -1 || lastBrace === -1) throw new Error('No valid JSON in response')
+    const jsonString = cleanText.slice(firstBrace, lastBrace + 1)
+    const analysisData = JSON.parse(jsonString)
 
     // Validate and normalize score
     analysisData.score = Math.max(0, Math.min(100, Number(analysisData.score) || 50))
