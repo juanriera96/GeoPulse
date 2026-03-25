@@ -1058,15 +1058,15 @@ export default function RoutesPage() {
 
 
 
-          originCountry: route.origin_country,
+          origin: route.origin_country,
 
 
 
-          destinationCountry: route.destination_country,
+          destination: route.destination_country,
 
 
 
-          cargoType: route.cargo_type,
+          cargo: route.cargo_type,
 
 
 
@@ -1150,7 +1150,7 @@ export default function RoutesPage() {
 
 
 
-      name: route.description || route.name || '',
+      name: route.name || '',
 
 
 
