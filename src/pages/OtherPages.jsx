@@ -1195,6 +1195,8 @@ export function SettingsPage() {
             {/* ── Cuenta ── */}
             {activeSection === 'account' && (
               <div className="space-y-4">
+
+                {/* ── Información de Cuenta ── */}
                 <div className="card p-5">
                   <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
                     <Shield className="w-4 h-4 text-brand-400" />
@@ -1204,30 +1206,141 @@ export function SettingsPage() {
                     <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
                       <div>
                         <p className="text-slate-300 text-sm font-medium">Plan actual</p>
-                        <p className="text-slate-500 text-xs">Acceso completo a todas las funciones</p>
+                        <p className="text-slate-500 text-xs">
+                          {profile?.plan === 'pro' ? 'Análisis ilimitados, PDF, alertas avanzadas' :
+                           profile?.plan === 'business' ? 'Todo Pro + equipo, API y soporte dedicado' :
+                           'Hasta 2 rutas, análisis básico'}
+                        </p>
                       </div>
-                      <span className="text-brand-400 font-semibold text-sm bg-brand-500/10 px-3 py-1 rounded-full border border-brand-500/20">Free</span>
+                      <span className={clsx('font-semibold text-sm px-3 py-1 rounded-full border', {
+                        'bg-amber-500/10 text-amber-400 border-amber-500/20': profile?.plan === 'pro',
+                        'bg-purple-500/10 text-purple-400 border-purple-500/20': profile?.plan === 'business',
+                        'bg-brand-500/10 text-brand-400 border-brand-500/20': !profile?.plan || profile?.plan === 'free',
+                      })}>
+                        {profile?.plan === 'pro' ? 'Pro' : profile?.plan === 'business' ? 'Business' : 'Free'}
+                      </span>
                     </div>
+                    {profile?.plan_expires_at && (
+                      <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                        <div>
+                          <p className="text-slate-300 text-sm font-medium">Próxima renovación</p>
+                          <p className="text-slate-500 text-xs">
+                            {new Date(profile.plan_expires_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </p>
+                        </div>
+                        <RefreshCw className="w-4 h-4 text-slate-500" />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
                       <div>
                         <p className="text-slate-300 text-sm font-medium">Miembro desde</p>
                         <p className="text-slate-500 text-xs">
                           {user?.created_at
-                            ? new Date(user.created_at).toLocaleDateString('es', { day: '2-digit', month: 'long', year: 'numeric' })
+                            ? new Date(user.created_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
                             : '—'}
                         </p>
                       </div>
+                      <Clock className="w-4 h-4 text-slate-500" />
                     </div>
                     <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
                       <div>
                         <p className="text-slate-300 text-sm font-medium">Email</p>
-                        <p className="text-slate-500 text-xs">{user?.email || '—'}</p>
+                        <p className="text-slate-500 text-xs">{user?.email}</p>
                       </div>
-                      <span className="text-xs text-slate-500 bg-slate-700 px-2 py-1 rounded">Verificado</span>
+                      <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">Verificado</span>
                     </div>
                   </div>
                 </div>
 
+                {/* ── Plan Comparison / Upgrade ── */}
+                {(!profile?.plan || profile?.plan === 'free') && (
+                  <div className="card p-5 border-brand-500/30">
+                    <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      Actualiza tu Plan
+                    </h2>
+                    <p className="text-slate-400 text-sm mb-4">Desbloquea análisis ilimitados, exportación PDF y alertas en tiempo real.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+
+                      {/* Pro */}
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-amber-400 font-bold text-lg">Pro</p>
+                            <p className="text-slate-400 text-xs">Para operadores activos</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white font-bold text-xl">$49</p>
+                            <p className="text-slate-500 text-xs">/mes USD</p>
+                          </div>
+                        </div>
+                        <ul className="space-y-1.5 text-sm text-slate-300 flex-1">
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Rutas ilimitadas</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Análisis con IA sin límite</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Exportación PDF de reportes</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Alertas automáticas</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Digest semanal por email</li>
+                        </ul>
+                        <a
+                          href="mailto:ventas@geopulse.app?subject=Upgrade%20a%20Pro&body=Hola%2C%20quiero%20actualizar%20mi%20cuenta%20al%20plan%20Pro."
+                          className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-sm rounded-lg transition-colors"
+                        >
+                          <Zap className="w-4 h-4" />
+                          Contratar Pro
+                        </a>
+                      </div>
+
+                      {/* Business */}
+                      <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-4 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-purple-400 font-bold text-lg">Business</p>
+                            <p className="text-slate-400 text-xs">Para equipos y agencias</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white font-bold text-xl">$149</p>
+                            <p className="text-slate-500 text-xs">/mes USD</p>
+                          </div>
+                        </div>
+                        <ul className="space-y-1.5 text-sm text-slate-300 flex-1">
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Todo lo del plan Pro</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Hasta 5 usuarios del equipo</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Acceso a API REST</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Reportes white-label</li>
+                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Soporte prioritario 24/7</li>
+                        </ul>
+                        <a
+                          href="mailto:ventas@geopulse.app?subject=Upgrade%20a%20Business&body=Hola%2C%20quiero%20actualizar%20mi%20cuenta%20al%20plan%20Business."
+                          className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-500 hover:bg-purple-400 text-white font-semibold text-sm rounded-lg transition-colors"
+                        >
+                          <TrendingUp className="w-4 h-4" />
+                          Contratar Business
+                        </a>
+                      </div>
+                    </div>
+                    <p className="text-center text-slate-500 text-xs">¿Necesitas una demo o plan personalizado? <a href="mailto:ventas@geopulse.app" className="text-brand-400 underline">Contáctanos</a></p>
+                  </div>
+                )}
+
+                {/* If already Pro or Business — show upgrade/manage */}
+                {(profile?.plan === 'pro' || profile?.plan === 'business') && (
+                  <div className="card p-5 border-emerald-500/20">
+                    <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      Plan {profile?.plan === 'pro' ? 'Pro' : 'Business'} activo
+                    </h2>
+                    <p className="text-slate-400 text-sm mb-4">Tienes acceso completo a todas las funciones de GeoPulse.</p>
+                    <a
+                      href="mailto:soporte@geopulse.app?subject=Gestionar%20suscripci%C3%B3n"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm rounded-lg transition-colors w-fit"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Gestionar suscripción
+                    </a>
+                  </div>
+                )}
+
+                {/* ── Zona de Peligro ── */}
                 <div className="card p-5 border-red-500/20">
                   <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
                     <Lock className="w-4 h-4 text-red-400" />
