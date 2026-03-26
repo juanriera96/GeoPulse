@@ -861,6 +861,358 @@ export function ReportsPage() {
   )
 }
 
+
+// ─── UpgradeSection Component ─────────────────────────────────────────────────
+function UpgradeSection({ userEmail }) {
+  const [selectedPlan, setSelectedPlan] = useState(null)   // 'pro' | 'business'
+  const [payModal, setPayModal] = useState(null)           // 'pagomovil' | 'zelle' | 'paypal' | null
+  const [receipt, setReceipt] = useState(null)             // File
+  const [receiptPreview, setReceiptPreview] = useState(null)
+  const [refNum, setRefNum] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  const PLANS = {
+    pro:      { label: 'Pro',      price: '$49',  color: 'amber',  features: ['Rutas ilimitadas', 'Análisis con IA sin límite', 'Exportación PDF de reportes', 'Alertas automáticas', 'Digest semanal por email'] },
+    business: { label: 'Business', price: '$149', color: 'purple', features: ['Todo lo del plan Pro', 'Hasta 5 usuarios del equipo', 'Acceso a API REST', 'Reportes white-label', 'Soporte prioritario 24/7'] },
+  }
+
+  const WA_NUMBER = '584143586307'
+
+  function openWhatsApp(text) {
+    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setReceipt(file)
+    const reader = new FileReader()
+    reader.onload = ev => setReceiptPreview(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  async function handleSendReceipt() {
+    if (!receipt || !selectedPlan) return
+    setSending(true)
+    try {
+      const { supabase } = await import('../lib/supabase')
+      const ext = receipt.name.split('.').pop()
+      const path = `receipts/${Date.now()}-${userEmail}.${ext}`
+      const { error: upErr } = await supabase.storage.from('payment-receipts').upload(path, receipt, { upsert: true })
+      if (upErr) throw upErr
+      const { data: urlData } = supabase.storage.from('payment-receipts').getPublicUrl(path)
+      const msg = `Hola! Soy ${userEmail}. Acabo de realizar el pago del plan ${PLANS[selectedPlan].label} (${PLANS[selectedPlan].price}/mes) por ${payModal === 'pagomovil' ? 'PagoMóvil' : payModal === 'zelle' ? 'Zelle' : 'PayPal'}.${refNum ? ' Número de referencia: ' + refNum + '.' : ''} Adjunto el comprobante: ${urlData?.publicUrl || '(ver imagen)'}`
+      openWhatsApp(msg)
+      setSent(true)
+    } catch(err) {
+      // fallback: send without upload link
+      const msg = `Hola! Soy ${userEmail}. Realicé el pago del plan ${PLANS[selectedPlan].label} por ${payModal === 'pagomovil' ? 'PagoMóvil' : payModal === 'zelle' ? 'Zelle' : 'PayPal'}.${refNum ? ' Ref: ' + refNum + '.' : ''} Por favor confirmen mi acceso.`
+      openWhatsApp(msg)
+      setSent(true)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  function closeModal() {
+    setPayModal(null)
+    setReceipt(null)
+    setReceiptPreview(null)
+    setRefNum('')
+    setSent(false)
+  }
+
+  const colorMap = {
+    amber:  { border: 'border-amber-500/30',  bg: 'bg-amber-500/5',  title: 'text-amber-400',  btn: 'bg-amber-500 hover:bg-amber-400 text-slate-900',  badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    purple: { border: 'border-purple-500/30', bg: 'bg-purple-500/5', title: 'text-purple-400', btn: 'bg-purple-500 hover:bg-purple-400 text-white',      badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  }
+
+  return (
+    <>
+      {/* ── Plan Cards ── */}
+      <div className="card p-5 border-brand-500/30">
+        <h2 className="text-white font-semibold mb-1 flex items-center gap-2">
+          <Zap className="w-4 h-4 text-amber-400" />
+          Actualiza tu Plan
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">Desbloquea análisis ilimitados, exportación PDF y alertas en tiempo real.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          {Object.entries(PLANS).map(([key, plan]) => {
+            const c = colorMap[plan.color]
+            const isSelected = selectedPlan === key
+            return (
+              <div
+                key={key}
+                onClick={() => setSelectedPlan(isSelected ? null : key)}
+                className={`rounded-xl border ${c.border} ${c.bg} p-4 flex flex-col gap-3 cursor-pointer transition-all ${isSelected ? 'ring-2 ring-offset-2 ring-offset-slate-900 ' + (plan.color === 'amber' ? 'ring-amber-400' : 'ring-purple-400') : 'hover:brightness-110'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`${c.title} font-bold text-lg`}>{plan.label}</p>
+                    <p className="text-slate-400 text-xs">{key === 'pro' ? 'Para operadores activos' : 'Para equipos y agencias'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-bold text-xl">{plan.price}</p>
+                    <p className="text-slate-500 text-xs">/mes USD</p>
+                  </div>
+                </div>
+                <ul className="space-y-1.5 text-sm text-slate-300 flex-1">
+                  {plan.features.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isSelected && (
+                  <div className={`text-xs text-center py-1 rounded font-medium border ${c.badge}`}>
+                    ✓ Seleccionado
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── Payment Methods (only when plan selected) ── */}
+        {selectedPlan && (
+          <div className="space-y-2">
+            <p className="text-slate-300 text-sm font-medium mb-3">Elige cómo pagar el plan <span className={colorMap[PLANS[selectedPlan].color].title + ' font-bold'}>{PLANS[selectedPlan].label}</span> {PLANS[selectedPlan].price}/mes:</p>
+
+            {/* PagoMóvil */}
+            <button
+              onClick={() => setPayModal('pagomovil')}
+              className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center shrink-0">
+                <span className="text-red-400 text-xs font-bold">PM</span>
+              </div>
+              <div>
+                <p className="text-slate-200 text-sm font-medium">PagoMóvil</p>
+                <p className="text-slate-500 text-xs">Transferencia instantánea Venezuela • Bolívares al cambio del día</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500 ml-auto shrink-0"/>
+            </button>
+
+            {/* Zelle */}
+            <button
+              onClick={() => setPayModal('zelle')}
+              className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center shrink-0">
+                <span className="text-violet-400 text-xs font-bold">Z€</span>
+              </div>
+              <div>
+                <p className="text-slate-200 text-sm font-medium">Zelle</p>
+                <p className="text-slate-500 text-xs">Transferencia bancaria USA en USD</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500 ml-auto shrink-0"/>
+            </button>
+
+            {/* PayPal */}
+            <button
+              onClick={() => setPayModal('paypal')}
+              className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                <span className="text-blue-400 text-xs font-bold">PP</span>
+              </div>
+              <div>
+                <p className="text-slate-200 text-sm font-medium">PayPal</p>
+                <p className="text-slate-500 text-xs">Pago internacional • Se añade comisión PayPal</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500 ml-auto shrink-0"/>
+            </button>
+
+            {/* WhatsApp direct */}
+            <button
+              onClick={() => openWhatsApp(`Hola! Quiero contratar el plan ${PLANS[selectedPlan].label} (${PLANS[selectedPlan].price}/mes) de GeoPulse. Mi email es: ${userEmail || ''}. ¿Cómo procedo?`)}
+              className="w-full flex items-center gap-3 p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              </div>
+              <div>
+                <p className="text-slate-200 text-sm font-medium">Consultar por WhatsApp</p>
+                <p className="text-slate-500 text-xs">Coordinamos el método de pago que prefieras</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-500 ml-auto shrink-0"/>
+            </button>
+          </div>
+        )}
+
+        <p className="text-center text-slate-500 text-xs mt-4">
+          ¿Tienes dudas? <button onClick={() => openWhatsApp('Hola! Quiero saber más sobre los planes de GeoPulse.')} className="text-brand-400 underline hover:text-brand-300">Contáctanos por WhatsApp</button>
+        </p>
+      </div>
+
+      {/* ── Payment Modal ── */}
+      {payModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-800">
+              <div>
+                <h3 className="text-white font-semibold text-base">
+                  {payModal === 'pagomovil' ? 'Pagar con PagoMóvil' : payModal === 'zelle' ? 'Pagar con Zelle' : 'Pagar con PayPal'}
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Plan {PLANS[selectedPlan]?.label} • {PLANS[selectedPlan]?.price}/mes USD
+                </p>
+              </div>
+              <button onClick={closeModal} className="text-slate-500 hover:text-white transition-colors p-1">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {!sent ? (
+                <>
+                  {/* ── PagoMóvil Data ── */}
+                  {payModal === 'pagomovil' && (
+                    <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+                      <p className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                        <Info className="w-4 h-4 text-brand-400" /> Datos para el PagoMóvil
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-slate-900 rounded-lg p-3">
+                          <p className="text-slate-500 text-xs mb-1">Cédula / RIF</p>
+                          <p className="text-white font-mono font-semibold">V-24.347.658</p>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-3">
+                          <p className="text-slate-500 text-xs mb-1">Teléfono</p>
+                          <p className="text-white font-mono font-semibold">0414-3586307</p>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-3">
+                          <p className="text-slate-500 text-xs mb-1">Banco</p>
+                          <p className="text-white font-mono font-semibold">BNC</p>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-3">
+                          <p className="text-slate-500 text-xs mb-1">Monto</p>
+                          <p className="text-amber-400 font-bold">{PLANS[selectedPlan]?.price} USD</p>
+                          <p className="text-slate-500 text-xs">al cambio BCV del día</p>
+                        </div>
+                      </div>
+                      <p className="text-slate-500 text-xs text-center">Realiza el pago y luego sube el comprobante abajo ↓</p>
+                    </div>
+                  )}
+
+                  {/* ── Zelle Data ── */}
+                  {payModal === 'zelle' && (
+                    <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+                      <p className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                        <Info className="w-4 h-4 text-brand-400" /> Datos para Zelle
+                      </p>
+                      <div className="bg-slate-900 rounded-lg p-3 text-center">
+                        <p className="text-slate-500 text-xs mb-1">Enviar Zelle a</p>
+                        <p className="text-white font-mono font-semibold text-lg">juan.riera.morales@gmail.com</p>
+                        <p className="text-slate-500 text-xs mt-2">A nombre de: Juan Riera</p>
+                      </div>
+                      <div className="bg-slate-900 rounded-lg p-3 text-center">
+                        <p className="text-slate-500 text-xs mb-1">Monto exacto</p>
+                        <p className="text-amber-400 font-bold text-xl">{PLANS[selectedPlan]?.price} USD</p>
+                      </div>
+                      <p className="text-slate-500 text-xs text-center">En el memo escribe tu email de GeoPulse. Luego sube el comprobante ↓</p>
+                    </div>
+                  )}
+
+                  {/* ── PayPal Data ── */}
+                  {payModal === 'paypal' && (
+                    <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+                      <p className="text-slate-300 text-sm font-medium flex items-center gap-2">
+                        <Info className="w-4 h-4 text-brand-400" /> Pagar con PayPal
+                      </p>
+                      <div className="bg-slate-900 rounded-lg p-3 text-center">
+                        <p className="text-slate-500 text-xs mb-1">Enviar pago a</p>
+                        <p className="text-white font-mono font-semibold">juan.riera.morales@gmail.com</p>
+                        <p className="text-slate-400 text-xs mt-2">Selecciona <span className="text-amber-400">Amigos y familiares</span> para evitar comisión, o agrega ~4% si usas Bienes y servicios</p>
+                      </div>
+                      <div className="bg-slate-900 rounded-lg p-3 text-center">
+                        <p className="text-slate-500 text-xs mb-1">Monto</p>
+                        <p className="text-amber-400 font-bold text-xl">{PLANS[selectedPlan]?.price} USD</p>
+                      </div>
+                      <p className="text-slate-500 text-xs text-center">En el concepto escribe tu email. Luego sube el comprobante ↓</p>
+                    </div>
+                  )}
+
+                  {/* ── Reference Number ── */}
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-1.5">
+                      Número de referencia <span className="text-slate-500 font-normal">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={refNum}
+                      onChange={e => setRefNum(e.target.value)}
+                      placeholder="Ej: 00234567890"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* ── Receipt Upload ── */}
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium block mb-1.5">
+                      Comprobante de pago <span className="text-red-400">*</span>
+                    </label>
+                    {!receiptPreview ? (
+                      <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 hover:border-brand-500 rounded-xl cursor-pointer bg-slate-800/50 transition-colors">
+                        <Download className="w-6 h-6 text-slate-500 mb-2" />
+                        <span className="text-slate-400 text-sm">Haz clic para subir imagen</span>
+                        <span className="text-slate-500 text-xs mt-1">PNG, JPG, WEBP • Máx 5MB</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                      </label>
+                    ) : (
+                      <div className="relative rounded-xl overflow-hidden border border-slate-700">
+                        <img src={receiptPreview} alt="comprobante" className="w-full h-40 object-cover" />
+                        <button
+                          onClick={() => { setReceipt(null); setReceiptPreview(null) }}
+                          className="absolute top-2 right-2 bg-slate-900/80 rounded-full p-1 text-slate-300 hover:text-white"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Submit ── */}
+                  <button
+                    onClick={handleSendReceipt}
+                    disabled={!receipt || sending}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-brand-500 hover:bg-brand-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold text-sm rounded-lg transition-colors"
+                  >
+                    {sending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</>
+                    ) : (
+                      <><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Enviar comprobante por WhatsApp</>
+                    )}
+                  </button>
+                  <p className="text-slate-500 text-xs text-center">Tu comprobante se guardará y se abrirá WhatsApp para confirmación. Activamos tu plan en menos de 2 horas hábiles.</p>
+                </>
+              ) : (
+                /* ── Success State ── */
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  <h4 className="text-white font-semibold text-lg">¡Listo!</h4>
+                  <p className="text-slate-400 text-sm">Tu comprobante fue enviado. Activaremos tu plan <span className="text-amber-400 font-medium">{PLANS[selectedPlan]?.label}</span> en menos de 2 horas hábiles.</p>
+                  <p className="text-slate-500 text-xs">Si tienes dudas, escríbenos directamente al WhatsApp.</p>
+                  <button onClick={closeModal} className="mt-2 px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm rounded-lg transition-colors">
+                    Cerrar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ─── Settings Page ────────────────────────────────────────────────────────────
 const COMPANY_TYPES = ['Importador', 'Exportador', 'Agente Aduanal', 'Operador Logístico', 'Manufacturero', 'Distribuidor', 'Bróker', 'Otro']
 const INDUSTRIES = ['Electrónica y Tecnología', 'Textil y Confección', 'Alimentos y Bebidas', 'Automotriz', 'Químico y Farmacéutico', 'Maquinaria Industrial', 'Construcción', 'Energía', 'Retail y Consumo', 'Otro']
@@ -1235,9 +1587,7 @@ export function SettingsPage() {
                       <div>
                         <p className="text-slate-300 text-sm font-medium">Miembro desde</p>
                         <p className="text-slate-500 text-xs">
-                          {user?.created_at
-                            ? new Date(user.created_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
-                            : '—'}
+                          {user?.created_at ? new Date(user.created_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                         </p>
                       </div>
                       <Clock className="w-4 h-4 text-slate-500" />
@@ -1252,77 +1602,12 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                {/* ── Plan Comparison / Upgrade ── */}
+                {/* ── Upgrade Section (Free only) ── */}
                 {(!profile?.plan || profile?.plan === 'free') && (
-                  <div className="card p-5 border-brand-500/30">
-                    <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-amber-400" />
-                      Actualiza tu Plan
-                    </h2>
-                    <p className="text-slate-400 text-sm mb-4">Desbloquea análisis ilimitados, exportación PDF y alertas en tiempo real.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-
-                      {/* Pro */}
-                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-amber-400 font-bold text-lg">Pro</p>
-                            <p className="text-slate-400 text-xs">Para operadores activos</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-white font-bold text-xl">$49</p>
-                            <p className="text-slate-500 text-xs">/mes USD</p>
-                          </div>
-                        </div>
-                        <ul className="space-y-1.5 text-sm text-slate-300 flex-1">
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Rutas ilimitadas</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Análisis con IA sin límite</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Exportación PDF de reportes</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Alertas automáticas</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Digest semanal por email</li>
-                        </ul>
-                        <a
-                          href="mailto:ventas@geopulse.app?subject=Upgrade%20a%20Pro&body=Hola%2C%20quiero%20actualizar%20mi%20cuenta%20al%20plan%20Pro."
-                          className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-sm rounded-lg transition-colors"
-                        >
-                          <Zap className="w-4 h-4" />
-                          Contratar Pro
-                        </a>
-                      </div>
-
-                      {/* Business */}
-                      <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-4 flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-purple-400 font-bold text-lg">Business</p>
-                            <p className="text-slate-400 text-xs">Para equipos y agencias</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-white font-bold text-xl">$149</p>
-                            <p className="text-slate-500 text-xs">/mes USD</p>
-                          </div>
-                        </div>
-                        <ul className="space-y-1.5 text-sm text-slate-300 flex-1">
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Todo lo del plan Pro</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Hasta 5 usuarios del equipo</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Acceso a API REST</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Reportes white-label</li>
-                          <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0"/>Soporte prioritario 24/7</li>
-                        </ul>
-                        <a
-                          href="mailto:ventas@geopulse.app?subject=Upgrade%20a%20Business&body=Hola%2C%20quiero%20actualizar%20mi%20cuenta%20al%20plan%20Business."
-                          className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-500 hover:bg-purple-400 text-white font-semibold text-sm rounded-lg transition-colors"
-                        >
-                          <TrendingUp className="w-4 h-4" />
-                          Contratar Business
-                        </a>
-                      </div>
-                    </div>
-                    <p className="text-center text-slate-500 text-xs">¿Necesitas una demo o plan personalizado? <a href="mailto:ventas@geopulse.app" className="text-brand-400 underline">Contáctanos</a></p>
-                  </div>
+                  <UpgradeSection userEmail={user?.email} />
                 )}
 
-                {/* If already Pro or Business — show upgrade/manage */}
+                {/* ── Active Plan (Pro/Business) ── */}
                 {(profile?.plan === 'pro' || profile?.plan === 'business') && (
                   <div className="card p-5 border-emerald-500/20">
                     <h2 className="text-white font-semibold mb-2 flex items-center gap-2">
@@ -1331,11 +1616,13 @@ export function SettingsPage() {
                     </h2>
                     <p className="text-slate-400 text-sm mb-4">Tienes acceso completo a todas las funciones de GeoPulse.</p>
                     <a
-                      href="mailto:soporte@geopulse.app?subject=Gestionar%20suscripci%C3%B3n"
-                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm rounded-lg transition-colors w-fit"
+                      href={`https://wa.me/584143586307?text=${encodeURIComponent('Hola, necesito gestionar mi suscripción GeoPulse ' + (profile?.plan === 'pro' ? 'Pro' : 'Business') + '. Mi email es: ' + (user?.email || ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-sm rounded-lg transition-colors w-fit"
                     >
-                      <Mail className="w-4 h-4" />
-                      Gestionar suscripción
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      Gestionar suscripción por WhatsApp
                     </a>
                   </div>
                 )}
