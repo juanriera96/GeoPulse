@@ -1108,7 +1108,7 @@ function UpgradeSection({ userEmail }) {
                       </p>
                       <div className="bg-slate-900 rounded-lg p-3 text-center">
                         <p className="text-slate-500 text-xs mb-1">Enviar Zelle a</p>
-                        <p className="text-white font-mono font-semibold text-lg">juan.riera.morales@gmail.com</p>
+                        <p className="text-white font-mono font-semibold text-lg">andresfernandezusa@gmail.com</p>
                         <p className="text-slate-500 text-xs mt-2">A nombre de: Juan Riera</p>
                       </div>
                       <div className="bg-slate-900 rounded-lg p-3 text-center">
