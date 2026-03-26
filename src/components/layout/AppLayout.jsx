@@ -5,9 +5,10 @@ import { useEffect, useState, useRef } from 'react'
 import clsx from 'clsx'
 import {
   LayoutDashboard, Globe, Bell, FileText, Settings, LogOut,
-  ChevronRight, AlertTriangle, Shield, User, ChevronDown, Menu, X
+  ChevronRight, AlertTriangle, Shield, User, ChevronDown, Menu, X, Zap
 } from 'lucide-react'
 import DashboardBackground from '../DashboardBackground'
+import { getPlanConfig } from '../../lib/planLimits'
 
 export default function AppLayout() {
   const { signOut, profile, user } = useAuthStore()
@@ -17,6 +18,9 @@ export default function AppLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const menuRef = useRef(null)
+
+  const plan = profile?.plan || 'free'
+  const planConfig = getPlanConfig(plan)
 
   useEffect(() => {
     if (user) loadCounts()
@@ -28,11 +32,6 @@ export default function AppLayout() {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  // Close mobile drawer on route change
-  useEffect(() => {
-    setMobileOpen(false)
   }, [])
 
   async function loadCounts() {
@@ -78,7 +77,6 @@ export default function AppLayout() {
             <p className="text-slate-500 text-xs">Risk Intelligence</p>
           </div>
         </div>
-        {/* Close button - mobile only */}
         <button
           onClick={() => setMobileOpen(false)}
           className="md:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
@@ -116,9 +114,30 @@ export default function AppLayout() {
         ))}
       </nav>
 
+      {/* Plan badge + upgrade CTA for free */}
+      <div className="px-3 py-2">
+        {plan === 'free' ? (
+          <button
+            onClick={() => { setMobileOpen(false); navigate('/settings') }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 bg-brand-600/10 border border-brand-500/20 rounded-lg hover:bg-brand-600/20 transition-colors group"
+          >
+            <Zap className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
+            <div className="flex-1 text-left">
+              <p className="text-xs font-semibold text-brand-400">Plan Free</p>
+              <p className="text-xs text-slate-500 group-hover:text-slate-400">Actualizar a Pro →</p>
+            </div>
+          </button>
+        ) : (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${planConfig.bg} ${planConfig.border}`}>
+            <Shield className={`w-3.5 h-3.5 flex-shrink-0 ${planConfig.color}`} />
+            <span className={`text-xs font-bold ${planConfig.color}`}>Plan {planConfig.name}</span>
+          </div>
+        )}
+      </div>
+
       {/* Critical alert */}
       {criticalCount > 0 && (
-        <div className="px-3 py-2">
+        <div className="px-3 pb-2">
           <button
             onClick={() => { setMobileOpen(false); navigate('/alerts') }}
             className="w-full flex items-center gap-2 px-3 py-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors text-xs font-medium"
@@ -178,12 +197,12 @@ export default function AppLayout() {
     <div className="flex h-screen bg-slate-950 overflow-hidden">
       <DashboardBackground />
 
-      {/* ── DESKTOP SIDEBAR (hidden on mobile) ── */}
+      {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex w-60 flex-shrink-0 bg-slate-900/95 border-r border-slate-800 flex-col relative z-10">
         <SidebarContent />
       </aside>
 
-      {/* ── MOBILE OVERLAY ── */}
+      {/* MOBILE OVERLAY */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
@@ -191,7 +210,7 @@ export default function AppLayout() {
         />
       )}
 
-      {/* ── MOBILE DRAWER ── */}
+      {/* MOBILE DRAWER */}
       <aside className={clsx(
         'fixed top-0 left-0 h-full w-72 bg-slate-900 border-r border-slate-800 flex flex-col z-50 md:hidden',
         'transition-transform duration-300 ease-in-out',
@@ -200,7 +219,7 @@ export default function AppLayout() {
         <SidebarContent />
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto relative z-10 flex flex-col">
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900/95 border-b border-slate-800 sticky top-0 z-30">
