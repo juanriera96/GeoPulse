@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
+import { useNavigate } from 'react-router-dom'
+import { canAddRoute } from '../lib/planLimits'
 import {
   Globe, Plus, Trash2, Edit2, X, Package, TrendingUp, MapPin, Zap,
   Loader2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle,
@@ -173,7 +175,8 @@ function RiskSparkline({ analyses }) {
   )
 }
 export default function RoutesPage() {
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
+  const navigate = useNavigate()
   const [routes, setRoutes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -217,6 +220,14 @@ export default function RoutesPage() {
   }
 
   async function handleSave() {
+    if (!editingRoute) {
+      const plan = profile?.plan || 'free'
+      const { allowed, reason } = canAddRoute(plan, routes.length)
+      if (!allowed) {
+        toast.error(reason || 'Límite de rutas alcanzado')
+        return
+      }
+    }
     if (!form.name.trim()) return toast.error('Nombre de ruta requerido')
     if (!form.origin_country) return toast.error('País de origen requerido')
     if (!form.destination_country) return toast.error('País de destino requerido')
@@ -327,12 +338,27 @@ export default function RoutesPage() {
           <button onClick={fetchRoutes} className="btn-ghost p-2 rounded-lg" title="Actualizar">
             <RefreshCw className="w-4 h-4 text-slate-400" />
           </button>
-          <button
-            onClick={() => { setEditingRoute(null); setForm(emptyForm); setShowModal(true) }}
-            className="btn-primary flex items-center gap-2 px-4 py-2"
-          >
-            <Plus className="w-4 h-4" /> Nueva ruta
-          </button>
+          {(() => {
+            const plan = profile?.plan || 'free'
+            const { allowed } = canAddRoute(plan, routes.length)
+            return (
+              <button
+                onClick={() => {
+                  if (!allowed) {
+                    navigate('/settings')
+                    toast.error('Límite de rutas alcanzado. Actualiza a Pro.')
+                    return
+                  }
+                  setEditingRoute(null); setForm(emptyForm); setShowModal(true)
+                }}
+                className={`btn-primary flex items-center gap-2 px-4 py-2 ${!allowed ? 'opacity-70' : ''}`}
+                title={!allowed ? 'Actualiza a Pro para más rutas' : undefined}
+              >
+                <Plus className="w-4 h-4" />
+                {!allowed ? 'Límite alcanzado' : 'Nueva ruta'}
+              </button>
+            )
+          })()}
         </div>
       </div>
 
