@@ -28,7 +28,7 @@ export default function LandingPage() {
       <div className="relative" style={{ zIndex: 2 }}>
         <nav className="flex items-center justify-between px-6 py-4 border-b border-slate-800/50 backdrop-blur-sm bg-slate-950/30">
           <div className="flex items-center">
-            <img src="/logo.svg" alt="GeoPulse" style={{ height: 36, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+            <img src="/logo.svg" alt="GeoPulse" style={{ height: 56, width: 'auto', filter: 'brightness(0) invert(1)' }} />
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/auth')} className="text-slate-300 hover:text-white text-sm transition-colors px-3 py-1.5">Iniciar sesion</button>
@@ -113,7 +113,7 @@ export default function LandingPage() {
         </section>
         <footer className="border-t border-slate-800/40 px-6 py-8 text-center bg-slate-950/80 backdrop-blur-sm">
           <div className="flex items-center justify-center mb-3">
-            <img src="/logo.svg" alt="GeoPulse" style={{ height: 28, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+            <img src="/logo.svg" alt="GeoPulse" style={{ height: 44, width: 'auto', filter: 'brightness(0) invert(1)' }} />
           </div>
           <p className="text-slate-500 text-sm">Inteligencia geopolitica para el comercio internacional</p>
           <p className="text-slate-600 text-xs mt-2">2025 GeoPulse. Todos los derechos reservados.</p>
